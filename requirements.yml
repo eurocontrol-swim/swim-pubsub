@@ -1,0 +1,7 @@
+name: swim-pubsub
+dependencies:
+  - python
+  - pytest
+  - pytest-cov
+  - pip:
+    - python-qpid_proton

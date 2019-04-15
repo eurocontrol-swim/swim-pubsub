@@ -1,0 +1,1 @@
+SWIM Publish/Subscribe library
