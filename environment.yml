@@ -27,4 +27,10 @@ dependencies:
   - xz=5.2.4=h14c3975_4
   - zlib=1.2.11=h7b6447c_3
   - pip:
+    - chardet==3.0.4
+    - idna==2.8
+    - opensky-network-client==0.0.1
     - python-qpid-proton==0.27.0
+    - requests==2.21.0
+    - rest-client==0.0.2
+    - urllib3==1.24.2

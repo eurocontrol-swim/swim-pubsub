@@ -5,3 +5,5 @@ dependencies:
   - pytest-cov
   - pip:
     - python-qpid_proton
+    - git+ssh://git@bitbucket.org/antavelos-eurocontrol/rest-client.git
+    - git+ssh://git@bitbucket.org/antavelos-eurocontrol/opensky-network-client.git
