@@ -27,10 +27,11 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import partial
 
 from opensky_network_client.opensky_network import OpenskyNetworkClient
+from rest_client.errors import APIError
 
 from swim_pubsub.publisher import Publisher
 from swim_pubsub.middleware import PublisherMiddleware
@@ -46,15 +47,15 @@ class MyMiddleware(PublisherMiddleware):
 
     def load_subscriptions(self, event=None):
         event.subscriptions = {
-            'localhost:5672/opensky/brussels_airport_arrivals_today': ['queue1', 'queue2', 'queue3'],
-            'localhost:5672/opensky/brussels_airport_departures_today': ['queue1', 'queue2', 'queue3']
+            'localhost:5672/opensky/brussels_airport_arrivals_today': ['queue1'],
+            'localhost:5672/opensky/brussels_airport_departures_today': ['queue1']
         }
         self.injector.trigger(event)
 
 
 def _today():
     today = datetime.today()
-    begin = datetime(today.year, today.month, today.day, 0, 0)
+    begin = datetime(today.year, today.month, today.day, 0, 0) - timedelta(days=1)
     end = datetime(today.year, today.month, today.day, 23, 59, 59)
 
     return int(begin.timestamp()), int(end.timestamp())
@@ -67,18 +68,20 @@ class OpenSkyNetworkDataHandler:
     def arrivals_today_handler(self, airport):
         begin, end = _today()
 
-        arrivals = self.client.get_flight_arrivals(airport, begin, end)
-
-        result = "\n".join(f'{arr.icao24} arrived from {arr.est_departure_airport}' for arr in arrivals)
+        try:
+            result = self.client.get_flight_arrivals(airport, begin, end, json=True)
+        except APIError:
+            result = []
 
         return result
 
     def departures_today_handler(self, airport):
         begin, end = _today()
 
-        departures = self.client.get_flight_departures(airport, begin, end)
-
-        result = "\n".join(f'{arr.icao24} departed to {arr.est_arrival_airport}' for arr in departures)
+        try:
+            result = self.client.get_flight_departures(airport, begin, end, json=True)
+        except APIError:
+            result = []
 
         return result
 
