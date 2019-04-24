@@ -50,25 +50,22 @@ class PublisherMiddleware(ABC):
 
 class SubscriberMiddleware(ABC):
 
-    def __init__(self, injector=None):
-        self.injector = injector or EventInjector()
-
     @abstractmethod
-    def get_topics(self, event=None):
+    def get_topics(self):
         pass
 
     @abstractmethod
-    def subscribe(self, topic, event=None):
+    def subscribe(self, topic):
         pass
 
     @abstractmethod
-    def unsubscribe(self, event=None):
+    def unsubscribe(self, topic):
         pass
 
     @abstractmethod
-    def pause(self, event=None):
+    def pause(self, topic):
         pass
 
     @abstractmethod
-    def resume(self, event=None):
+    def resume(self, topic):
         pass

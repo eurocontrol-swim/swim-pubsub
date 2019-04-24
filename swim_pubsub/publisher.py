@@ -47,7 +47,7 @@ class Subscription:
     def dispatch(self, data):
         if self.sender.credit:
             # print(f'sending to {self.sender.target.address} with credit {self.sender.credit}')
-            msg = Message(body={'data': f'{data} - {self.counter}'})
+            msg = Message(body={'data': data, 'batch': self.counter})
             self.sender.send(msg)
             # print(f'sent: -- {self.sender.target.address} - {data} - {self.counter}')
             self.counter += 1

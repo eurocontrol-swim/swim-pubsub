@@ -28,9 +28,10 @@ http://opensource.org/licenses/BSD-3-Clause
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
 import threading
+from functools import wraps
 
 from proton._handlers import MessagingHandler
-from proton._reactor import Container
+from proton._reactor import Container, ApplicationEvent
 
 from swim_pubsub.middleware import SubscriberMiddleware
 
@@ -42,29 +43,48 @@ class SubscriberHandler(MessagingHandler):
     def __init__(self, subscriber_middleware):
         MessagingHandler.__init__(self)
 
-        self.sm = subscriber_middleware
+        self._sm = subscriber_middleware
         self.receivers = {}
+        self._started = False
 
-    def add_subscription(self, address):
+    def add_subscription(self, address, data_handler):
         if address not in self.receivers:
             print(f'start receiving on: {address}')
             receiver = self.container.create_receiver(self.conn, address)
-            self.receivers[address] = receiver
+            self.receivers[address] = (receiver, data_handler)
 
     def remove_subscription(self, address):
-        receiver = self.receivers.pop(address)
+        receiver, _ = self.receivers.pop(address)
         receiver.close()
 
     def on_start(self, event):
         self.container = event.container
-        self.container.selectable(self.sm.injector)
         self.conn = self.container.connect()
+        self._started = True
 
     def on_message(self, event):
-        pass
+        for _, (receiver, data_handler) in self.receivers.items():
+            if event.receiver == receiver:
+                data_handler(event.message.body)
 
+    def subscribe(self, topic, data_handler):
+        address = self._sm.subscribe(topic)
+        self.add_subscription(address, data_handler)
 
-class Subscriber:
+    def unsubscribe(self, topic):
+        address = self._sm.unsubscribe(topic)
+        self.remove_subscription(address)
+
+    def pause(self, topic):
+        self._sm.pause(topic)
+
+    def resume(self, topic):
+        self._sm.resume(topic)
+
+    def has_started(self):
+        return self._started
+
+class Subscriber():
 
     def __init__(self, url, subscriber_middleware):
         if not isinstance(subscriber_middleware, SubscriberMiddleware):
@@ -73,41 +93,31 @@ class Subscriber:
         self.url = url
         self._sm = subscriber_middleware
         self._sub_handler = SubscriberHandler(self._sm)
-        self._reactor = Container(self._sub_handler)
 
-        self._thread = None
-
-    def start(self):
-        self._thread = threading.Thread(target=self._reactor.run)
+        self._thread = threading.Thread(target=self.run)
         self._thread.daemon = True
         self._thread.start()
 
-    def _check_thread(self):
-        if not self._thread:
-            raise SubscriberError('Subscriber app has not started yet.')
+    def run(self):
+        self._reactor = Container(self._sub_handler).run()
 
     def get_topics(self):
-        self._check_thread()
         return self._sm.get_topics()
 
-    def subscribe(self, topic):
-        self._check_thread()
-        address = self._sm.subscribe(topic)
-        self._sub_handler.add_subscription(address)
+    def subscribe(self, topic, data_handler):
+        self._sub_handler.subscribe(topic, data_handler)
 
-    def unsubscribe(self, address):
-        self._check_thread()
-        self._sm.unsubscribe(address)
+    def unsubscribe(self, topic):
+        self._sub_handler.unsubscribe(topic)
 
+    def pause(self, topic):
+        self._sub_handler.pause(topic)
 
-    def pause(self):
-        self._check_thread()
-        self._sm.pause()
+    def resume(self, topic):
+        self._sub_handler.resume(topic)
 
-    def resume(self):
-        self._check_thread()
-        self._sm.resume()
-
+    def is_running(self):
+        return self._thread.is_alive() and self._sub_handler.has_started()
 
 class SubscriberError(Exception):
     pass
