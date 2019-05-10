@@ -50,9 +50,9 @@ class PublisherMiddleware(ABC):
 
 class SubscriberMiddleware(ABC):
 
-    @abstractmethod
-    def get_topics(self):
-        pass
+    # @abstractmethod
+    # def get_topics(self):
+    #     pass
 
     @abstractmethod
     def subscribe(self, topic):

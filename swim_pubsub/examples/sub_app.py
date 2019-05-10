@@ -28,28 +28,51 @@ http://opensource.org/licenses/BSD-3-Clause
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
 import json
+import uuid
 
 from swim_pubsub.subscriber import Subscriber
 from swim_pubsub.middleware import SubscriberMiddleware
+from swim_pubsub.rabbitqm_client import RabbitmqManagementClient
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
 class MyMiddleware(SubscriberMiddleware):
-    def get_topics(self):
-        return ['brussels_airport_departures_today', 'brussels_airport_arrivals_today']
+    def __init__(self):
+        host = 'https://localhost:15671'
+        verify = '/media/alex/Data/dev/work/eurocontrol/RabbitMQ-docker/certs/ca_certificate.pem'
+        self.rabbit_client = RabbitmqManagementClient(host, verify=verify)
+
+    def get_queue_from_topic(self, topic):
+        bindings = self.rabbit_client.get_bindings()
+        queue = [
+            b['destination']
+            for b in bindings
+            if b['destination_type'] == 'queue'
+            and b['routing_key'] == topic
+        ][0]
+
+        return queue
 
     def subscribe(self, topic):
+        key = topic
+        topic, *_ = topic.split(".")
 
-        # add new subscription in SM
+        queue = uuid.uuid4().hex
 
-        return f'localhost:5672/opensky/{topic}-queue1'
+        self.rabbit_client.create_queue(queue)
+        self.rabbit_client.bind_queue(queue, topic, key)
+
+        #TODO: add new subscription in SM
+
+        return queue
 
     def unsubscribe(self, topic):
-
-        # remove subscription in SM
-
-        return f'localhost:5672/opensky/{topic}-queue1'
+        queue = self.get_queue_from_topic(topic)
+        print(f"deleting {queue}")
+        r = self.rabbit_client.delete_queue(queue)
+        print(r)
+        # TODO: remove subscription in SM
 
     def pause(self, topic):
 
@@ -80,8 +103,15 @@ def handle_brussels_departures(body, queue):
         f.write(f'Received batch #{body["batch"]}\n\n')
 
 
+def handler(body, topic):
+
+    with open(f'/home/alex/data/{topic}', 'a') as f:
+        f.write(f'{topic}: {body["data"]}\n')
+        f.write(f'Received batch #{body["batch"]}\n\n')
+
+
 def create_app():
-    app = Subscriber('localhost:5672/opensky', MyMiddleware())
+    app = Subscriber(MyMiddleware())
 
     while not app.is_running():
         pass
@@ -90,7 +120,7 @@ def create_app():
 
 from functools import partial
 app = create_app()
-dha = partial(handle_brussels_arrivals, queue='queue1')
-dhd = partial(handle_brussels_departures, queue='queue1')
-app.subscribe('brussels_airport_arrivals_today', dha)
-app.subscribe('brussels_airport_departures_today', dhd)
+# dha = partial(handle_brussels_arrivals, queue='queue1')
+# dhd = partial(handle_brussels_departures, queue='queue1')
+# app.subscribe('brussels_airport_arrivals_today', dha)
+# app.subscribe('brussels_airport_departures_today', dhd)

@@ -33,7 +33,7 @@ from functools import partial
 from opensky_network_client.opensky_network import OpenskyNetworkClient
 from rest_client.errors import APIError
 
-from swim_pubsub.publisher import Publisher
+from swim_pubsub.publisher import Publisher, Route
 from swim_pubsub.middleware import PublisherMiddleware
 
 __author__ = "EUROCONTROL (SWIM)"
@@ -46,16 +46,16 @@ class MyMiddleware(PublisherMiddleware):
         pass
 
     def load_subscriptions(self, event=None):
-        event.subscriptions = {
-            'localhost:5672/opensky/brussels_airport_arrivals_today': ['queue1'],
-            'localhost:5672/opensky/brussels_airport_departures_today': ['queue1']
-        }
+        with open('/home/alex/subscriptions.json') as f:
+            data = f.read()
+        import json
+        event.subscriptions = json.loads(data)
         self.injector.trigger(event)
 
 
 def _today():
     today = datetime.today()
-    begin = datetime(today.year, today.month, today.day, 0, 0) - timedelta(days=1)
+    begin = datetime(today.year, today.month, today.day, 0, 0) - timedelta(days=4)
     end = datetime(today.year, today.month, today.day, 23, 59, 59)
 
     return int(begin.timestamp()), int(end.timestamp())
@@ -65,36 +65,58 @@ class OpenSkyNetworkDataHandler:
     def __init__(self):
         self.client = OpenskyNetworkClient.create('opensky-network.org')
 
-    def arrivals_today_handler(self, airport):
+    def arrivals_today_handler(self, icao24):
         begin, end = _today()
 
         try:
-            result = self.client.get_flight_arrivals(airport, begin, end, json=True)
+            result = self.client.get_flight_arrivals(icao24, begin, end, json=True)
         except APIError:
             result = []
 
-        return result
+        return "\n".join(f'{arr["icao24"]} arrived from {arr["estDepartureAirport"]} to {arr["estArrivalAirport"]}'
+                         for arr in result)
 
-    def departures_today_handler(self, airport):
+    def departures_today_handler(self, icao24):
         begin, end = _today()
 
         try:
-            result = self.client.get_flight_departures(airport, begin, end, json=True)
+            result = self.client.get_flight_departures(icao24, begin, end, json=True)
         except APIError:
             result = []
 
-        return result
+        return "\n".join(f'{arr["icao24"]} departed from {arr["estDepartureAirport"]} to {arr["estArrivalAirport"]}'
+                         for arr in result)
 
 
 if __name__ == '__main__':
-    app = Publisher('localhost:5672/opensky', MyMiddleware())
+    # app = Publisher('localhost:5671', MyMiddleware())
+    app = Publisher()
 
     data_handler = OpenSkyNetworkDataHandler()
-    brussels_airport = 'EBBR'
-    brussels_airport_arrivals_today = partial(data_handler.arrivals_today_handler, brussels_airport)
-    brussels_airport_departures_today = partial(data_handler.departures_today_handler, brussels_airport)
 
-    app.register_topic('brussels_airport_arrivals_today', brussels_airport_arrivals_today)
-    app.register_topic('brussels_airport_departures_today', brussels_airport_departures_today)
+    airports = {
+        'Brussels': 'EBBR',
+        'Amsterdam': 'EHAM',
+        'Paris': 'LFPG',
+        'Berlin': 'EDDB',
+        'Athens': 'LGAV',
+        'Madrid': 'LECU'
+    }
+
+    # arrivals_topic = Topic('arrivals')
+    # departures_topic = Topic('departures')
+
+    for airport, icao24 in airports.items():
+        arrivals_handler = partial(data_handler.arrivals_today_handler, icao24)
+        departures_handler = partial(data_handler.departures_today_handler, icao24)
+
+        app.register_route(Route(topic="arrivals",
+                                 key=f"arrivals.{airport.lower()}",
+                                 handler=arrivals_handler,
+                                 interval=5))
+        app.register_route(Route(topic="departures",
+                                 key=f"departures.{airport.lower()}",
+                                 handler=departures_handler,
+                                 interval=5))
 
     app.run()

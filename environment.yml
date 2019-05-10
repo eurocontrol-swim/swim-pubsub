@@ -9,17 +9,17 @@ dependencies:
   - libffi=3.2.1=hd88cf55_4
   - libgcc-ng=8.2.0=hdf63c60_1
   - libstdcxx-ng=8.2.0=hdf63c60_1
-  - more-itertools=6.0.0=py37_0
+  - more-itertools=7.0.0=py37_0
   - ncurses=6.1=he6710b0_1
   - openssl=1.1.1b=h7b6447c_1
-  - pip=19.0.3=py37_0
+  - pip=19.1=py37_0
   - pluggy=0.9.0=py37_0
   - py=1.8.0=py37_0
   - pytest=4.4.1=py37_0
   - pytest-cov=2.6.1=py37_0
   - python=3.7.3=h0371630_0
   - readline=7.0=h7b6447c_5
-  - setuptools=41.0.0=py37_0
+  - setuptools=41.0.1=py37_0
   - six=1.12.0=py37_0
   - sqlite=3.28.0=h7b6447c_0
   - tk=8.6.8=hbc83047_0
@@ -30,7 +30,7 @@ dependencies:
     - chardet==3.0.4
     - idna==2.8
     - opensky-network-client==0.0.2
-    - python-qpid-proton==0.27.0
+    - python-qpid-proton==0.27.1
     - requests==2.21.0
     - rest-client==0.0.3
-    - urllib3==1.24.2
+    - urllib3==1.24.3

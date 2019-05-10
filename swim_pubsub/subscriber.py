@@ -28,10 +28,10 @@ http://opensource.org/licenses/BSD-3-Clause
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
 import threading
-from functools import wraps
 
+from proton import SSLDomain
 from proton._handlers import MessagingHandler
-from proton._reactor import Container, ApplicationEvent
+from proton._reactor import Container
 
 from swim_pubsub.middleware import SubscriberMiddleware
 
@@ -47,50 +47,70 @@ class SubscriberHandler(MessagingHandler):
         self.receivers = {}
         self._started = False
 
-    def add_subscription(self, address, data_handler):
-        if address not in self.receivers:
-            print(f'start receiving on: {address}')
-            receiver = self.container.create_receiver(self.conn, address)
-            self.receivers[address] = (receiver, data_handler)
+    def _get_ssl_domain(self):
+        ssl_domain = SSLDomain(SSLDomain.VERIFY_PEER)
+        # Set the CA certificate
+        ssl_domain.set_trusted_ca_db("/media/alex/Data/dev/work/eurocontrol/RabbitMQ-docker/certs/ca_certificate.pem")
+        # Set the producer certificate and key to authenticate the producer
+        ssl_domain.set_credentials("/media/alex/Data/dev/work/eurocontrol/RabbitMQ-docker/certs/client_certificate.pem",
+                                   "/media/alex/Data/dev/work/eurocontrol/RabbitMQ-docker/certs/client_key.pem",
+                                   'swim-ti')
+        return ssl_domain
 
-    def remove_subscription(self, address):
-        receiver, _ = self.receivers.pop(address)
-        receiver.close()
+    def add_subscription(self, queue, data_handler):
+        receiver = self.container.create_receiver(self.conn, queue)
+        print(f'start receiving on: {queue}')
+
+        self.receivers[receiver] = (queue, data_handler)
+
+    def remove_subscription(self, queue):
+        for receiver, (receiver_queue, _) in self.receivers.items():
+            if queue == receiver_queue:
+                receiver.close()
+                del self.receivers[receiver]
+                break
+
+        # receiver, _ = self.receivers.pop(address)
+        # receiver.close()
 
     def on_start(self, event):
         self.container = event.container
-        self.conn = self.container.connect()
+        self.conn = self.container.connect('amqps://localhost:5671', ssl_domain=self._get_ssl_domain())
         self._started = True
 
     def on_message(self, event):
-        for _, (receiver, data_handler) in self.receivers.items():
-            if event.receiver == receiver:
-                data_handler(event.message.body)
+        _, data_handler = self.receivers[event.receiver]
+        data_handler(event.message.body)
+
+        # for _, (receiver, data_handler) in self.receivers.items():
+        #     if event.receiver == receiver:
+        #         data_handler(event.message.body)
 
     def subscribe(self, topic, data_handler):
-        address = self._sm.subscribe(topic)
-        self.add_subscription(address, data_handler)
+        queue = self._sm.subscribe(topic)
+        self.add_subscription(queue, data_handler)
 
     def unsubscribe(self, topic):
-        address = self._sm.unsubscribe(topic)
-        self.remove_subscription(address)
+        queue = self._sm.get_queue_from_topic(topic)
+        self.remove_subscription(queue)
+        self._sm.unsubscribe(topic)
 
-    def pause(self, topic):
-        self._sm.pause(topic)
-
-    def resume(self, topic):
-        self._sm.resume(topic)
+    # def pause(self, topic):
+    #     self._sm.pause(topic)
+    #
+    # def resume(self, topic):
+    #     self._sm.resume(topic)
 
     def has_started(self):
         return self._started
 
+
 class Subscriber():
 
-    def __init__(self, url, subscriber_middleware):
+    def __init__(self, subscriber_middleware):
         if not isinstance(subscriber_middleware, SubscriberMiddleware):
             raise ValueError('publisher_middleware should be instance of SubscriberMiddleware')
 
-        self.url = url
         self._sm = subscriber_middleware
         self._sub_handler = SubscriberHandler(self._sm)
 
@@ -101,8 +121,8 @@ class Subscriber():
     def run(self):
         self._reactor = Container(self._sub_handler).run()
 
-    def get_topics(self):
-        return self._sm.get_topics()
+    # def get_topics(self):
+    #     return self._sm.get_topics()
 
     def subscribe(self, topic, data_handler):
         self._sub_handler.subscribe(topic, data_handler)
@@ -110,11 +130,11 @@ class Subscriber():
     def unsubscribe(self, topic):
         self._sub_handler.unsubscribe(topic)
 
-    def pause(self, topic):
-        self._sub_handler.pause(topic)
-
-    def resume(self, topic):
-        self._sub_handler.resume(topic)
+    # def pause(self, topic):
+    #     self._sub_handler.pause(topic)
+    #
+    # def resume(self, topic):
+    #     self._sub_handler.resume(topic)
 
     def is_running(self):
         return self._thread.is_alive() and self._sub_handler.has_started()
