@@ -1,1 +1,1 @@
-SWIM Publish/Subscribe library
+SWIM Publish/Subscribe mini framework
