@@ -45,7 +45,7 @@ class PubSubApp:
         self._ssl_domain = None
         self._handler = None
         self._container = None
-        self._sms = None
+        self._sm_facade = None
 
     def _load_config(self, config_file):
         return yaml_file_to_dict(config_file)
@@ -66,8 +66,8 @@ class PubSubApp:
         return self._ssl_domain
 
     @property
-    def sms(self):
-        if not self._sms:
+    def sm_facade(self):
+        if not self._sm_facade:
             sm_config = self.config['SUBSCRIPTION-MANAGER']
             subscription_manager_client = SubscriptionManagerClient.create(
                 host=sm_config['host'],
@@ -75,6 +75,6 @@ class PubSubApp:
                 username=sm_config['username'],
                 password=sm_config['password']
             )
-            self._sms = SubscriptionManagerFacade(client=subscription_manager_client)
+            self._sm_facade = SubscriptionManagerFacade(client=subscription_manager_client)
 
-        return self._sms
+        return self._sm_facade

@@ -64,7 +64,7 @@ class PublisherApp(PubSubApp):
         topics_to_populate = [key for topic in self.topics for key in topic.route_keys]
         for topic in topics_to_populate:
             try:
-                self.sms.create_topic(topic)
+                self.sm_facade.create_topic(topic)
             except APIError as e:
                 print(f"{topic}: {str(e)}")
 

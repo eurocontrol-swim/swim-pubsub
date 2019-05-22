@@ -62,7 +62,7 @@ class SubscriberApp(PubSubApp):
 
     @sms_error_handler
     def subscribe(self, topic_name, data_handler):
-        queue = self.sms.subscribe(topic_name)
+        queue = self.sm_facade.subscribe(topic_name)
         print("Subscribed in SM")
 
         self._handler.add_receiver(queue, data_handler)
@@ -77,19 +77,19 @@ class SubscriberApp(PubSubApp):
         self._handler.remove_receiver(queue)
         print('Removed receiver')
 
-        self.sms.unsubscribe(queue)
+        self.sm_facade.unsubscribe(queue)
         print("Deleted subscription from SM")
 
     @sms_error_handler
     def pause(self, topic_name):
         queue = self.subscriptions[topic_name]
 
-        self.sms.pause(queue)
+        self.sm_facade.pause(queue)
         print("Paused subscription in SM")
 
     @sms_error_handler
     def resume(self, topic_name):
         queue = self.subscriptions[topic_name]
 
-        self.sms.resume(queue)
+        self.sm_facade.resume(queue)
         print("Resumed subscription in SM")
