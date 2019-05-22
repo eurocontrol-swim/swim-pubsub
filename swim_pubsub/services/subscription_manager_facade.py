@@ -35,11 +35,11 @@ from subscription_manager_client.subscription_manager import SubscriptionManager
 __author__ = "EUROCONTROL (SWIM)"
 
 
-class SubscriptionManagerServiceError(Exception):
+class SubscriptionManagerFacadeError(Exception):
     pass
 
 
-class SubscriptionManagerService:
+class SubscriptionManagerFacade:
 
     def __init__(self, client: SubscriptionManagerClient):
         self.client: SubscriptionManagerClient = client
@@ -72,7 +72,7 @@ class SubscriptionManagerService:
         subscriptions = self.client.get_subscriptions(queue=queue)
 
         if not subscriptions:
-            raise SubscriptionManagerServiceError(f"No subscription found for queue '{queue}'")
+            raise SubscriptionManagerFacadeError(f"No subscription found for queue '{queue}'")
 
         return subscriptions[0]
 
@@ -82,7 +82,7 @@ class SubscriptionManagerService:
         try:
             topic = [topic for topic in db_topics if topic.name == topic_name][0]
         except IndexError:
-            raise SubscriptionManagerServiceError(f"{topic_name} is not registered")
+            raise SubscriptionManagerFacadeError(f"{topic_name} is not registered")
 
         subscription = Subscription(
             topic_id=topic.id
@@ -91,7 +91,7 @@ class SubscriptionManagerService:
         try:
             db_subscription = self.client.post_subscription(subscription)
         except APIError as e:
-            raise SubscriptionManagerServiceError(f"Error while subscribing to {topic_name}: {str(e)}")
+            raise SubscriptionManagerFacadeError(f"Error while subscribing to {topic_name}: {str(e)}")
 
         return db_subscription.queue
 
@@ -101,7 +101,7 @@ class SubscriptionManagerService:
         try:
             self.client.delete_subscription_by_id(subscription.id)
         except APIError as e:
-            raise SubscriptionManagerServiceError(f"Error while deleting subscription '{subscription.id}': {str(e)}")
+            raise SubscriptionManagerFacadeError(f"Error while deleting subscription '{subscription.id}': {str(e)}")
 
     def pause(self, queue):
         subscription = self._get_subscription_by_queue(queue)
@@ -111,7 +111,7 @@ class SubscriptionManagerService:
         try:
             self.client.put_subscription(subscription.id, subscription)
         except APIError as e:
-            raise SubscriptionManagerServiceError(f"Error while updating subscription '{subscription.id}': {str(e)}")
+            raise SubscriptionManagerFacadeError(f"Error while updating subscription '{subscription.id}': {str(e)}")
 
     def resume(self, queue):
         subscription = self._get_subscription_by_queue(queue)
@@ -121,4 +121,4 @@ class SubscriptionManagerService:
         try:
             self.client.put_subscription(subscription.id, subscription)
         except APIError as e:
-            raise SubscriptionManagerServiceError(f"Error while updating subscription '{subscription.id}': {str(e)}")
+            raise SubscriptionManagerFacadeError(f"Error while updating subscription '{subscription.id}': {str(e)}")

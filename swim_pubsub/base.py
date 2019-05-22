@@ -31,7 +31,7 @@ from subscription_manager_client.subscription_manager import SubscriptionManager
 
 from swim_pubsub.auth import get_ssl_domain
 from swim_pubsub.config import yaml_file_to_dict
-from swim_pubsub.services.subscription_manager_service import SubscriptionManagerService
+from swim_pubsub.services.subscription_manager_facade import SubscriptionManagerFacade
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -75,6 +75,6 @@ class PubSubApp:
                 username=sm_config['username'],
                 password=sm_config['password']
             )
-            self._sms = SubscriptionManagerService(client=subscription_manager_client)
+            self._sms = SubscriptionManagerFacade(client=subscription_manager_client)
 
         return self._sms

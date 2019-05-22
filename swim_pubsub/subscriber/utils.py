@@ -29,7 +29,7 @@ Details on EUROCONTROL: http://www.eurocontrol.int
 """
 from functools import wraps
 
-from swim_pubsub.services.subscription_manager_service import SubscriptionManagerServiceError
+from swim_pubsub.services.subscription_manager_facade import SubscriptionManagerFacadeError
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -39,6 +39,6 @@ def sms_error_handler(f):
     def wrapper(*args, **kwargs):
         try:
             return f(*args, **kwargs)
-        except SubscriptionManagerServiceError as e:
+        except SubscriptionManagerFacadeError as e:
             print(str(e))
     return wrapper
