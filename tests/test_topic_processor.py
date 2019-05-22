@@ -27,35 +27,25 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-import os
-
-from swim_pubsub.subscriber.subscriber import SubscriberApp
+from swim_pubsub._topic_processor import MultipleFilter, TopicHandler
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-def handler(body, topic):
+def f(a: int, b: str, c: bool, d: int = 1, e:int = None):
+    print(f"\na: {a} - {type(a).__name__}\n"
+          f"b: {b} - {type(b).__name__}\n"
+          f"c: {c} - {type(c).__name__}\n"
+          f"d: {d} - {type(d).__name__}\n"
+          f"e: {e} - {type(e).__name__}\n")
 
-    with open(f'/home/alex/data/{topic}', 'a') as f:
-        f.write(f'{topic}: {body["data"]}\n')
-        f.write(f'Received batch #{body["batch"]}\n\n')
+def test_topic_processor():
+    tp = TopicHandler(f)
+    tp(a=1, b='1')
 
 
-def create_app():
-    current_dir = os.path.dirname(os.path.realpath(__file__))
-    app = SubscriberApp(os.path.join(current_dir, 'config.yml'))
-
-    while not app.is_running():
-        pass
-
-    return app
-
-app = create_app()
-
-# basic functions of the app
-#
-# >>> from functools import partial
-# >>> app.subscribe('arrivals.paris', partial(handler, topic='arrivals.paris'))
-# >>> app.pause('arrivals.paris')
-# >>> app.resume('arrivals.paris')
-# >>> app.unsubscribe('arrivals.paris')
+def test_filter_string():
+    filter_str = 'a=1&b=alex&c=t'
+    fs = MultipleFilter.from_string(filter_str)
+    tp = TopicHandler(f)
+    tp(**fs.to_dict())

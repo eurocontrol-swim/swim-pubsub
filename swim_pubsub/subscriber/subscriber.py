@@ -27,35 +27,69 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-import os
+import threading
 
-from swim_pubsub.subscriber.subscriber import SubscriberApp
+from proton._reactor import Container
+
+from swim_pubsub.base import PubSubApp
+from swim_pubsub.subscriber.utils import sms_error_handler
+from swim_pubsub.subscriber.handler import SubscriberHandler
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-def handler(body, topic):
+class SubscriberApp(PubSubApp):
 
-    with open(f'/home/alex/data/{topic}', 'a') as f:
-        f.write(f'{topic}: {body["data"]}\n')
-        f.write(f'Received batch #{body["batch"]}\n\n')
+    def __init__(self, config_file):
+        PubSubApp.__init__(self, config_file)
+        self.subscriptions = {}
 
+        self._handler = SubscriberHandler(
+            host=self.config['BROKER']['host'],
+            ssl_domain=self.ssl_domain
+        )
 
-def create_app():
-    current_dir = os.path.dirname(os.path.realpath(__file__))
-    app = SubscriberApp(os.path.join(current_dir, 'config.yml'))
+        self._thread = threading.Thread(target=self.run)
+        self._thread.daemon = True
+        self._thread.start()
 
-    while not app.is_running():
-        pass
+    def is_running(self):
+        return self._thread.is_alive() and self._handler.has_started()
 
-    return app
+    def run(self):
+        self._container = Container(self._handler)
+        self._container.run()
 
-app = create_app()
+    @sms_error_handler
+    def subscribe(self, topic_name, data_handler):
+        queue = self.sms.subscribe(topic_name)
+        print("Subscribed in SM")
 
-# basic functions of the app
-#
-# >>> from functools import partial
-# >>> app.subscribe('arrivals.paris', partial(handler, topic='arrivals.paris'))
-# >>> app.pause('arrivals.paris')
-# >>> app.resume('arrivals.paris')
-# >>> app.unsubscribe('arrivals.paris')
+        self._handler.add_receiver(queue, data_handler)
+        print('Created receiver')
+
+        self.subscriptions[topic_name] = queue
+
+    @sms_error_handler
+    def unsubscribe(self, topic_name):
+        queue = self.subscriptions[topic_name]
+
+        self._handler.remove_receiver(queue)
+        print('Removed receiver')
+
+        self.sms.unsubscribe(queue)
+        print("Deleted subscription from SM")
+
+    @sms_error_handler
+    def pause(self, topic_name):
+        queue = self.subscriptions[topic_name]
+
+        self.sms.pause(queue)
+        print("Paused subscription in SM")
+
+    @sms_error_handler
+    def resume(self, topic_name):
+        queue = self.subscriptions[topic_name]
+
+        self.sms.resume(queue)
+        print("Resumed subscription in SM")

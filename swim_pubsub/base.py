@@ -27,35 +27,54 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-import os
+from subscription_manager_client.subscription_manager import SubscriptionManagerClient
 
-from swim_pubsub.subscriber.subscriber import SubscriberApp
+from swim_pubsub.auth import get_ssl_domain
+from swim_pubsub.config import yaml_file_to_dict
+from swim_pubsub.services.subscription_manager_service import SubscriptionManagerService
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-def handler(body, topic):
+class PubSubApp:
 
-    with open(f'/home/alex/data/{topic}', 'a') as f:
-        f.write(f'{topic}: {body["data"]}\n')
-        f.write(f'Received batch #{body["batch"]}\n\n')
+    def __init__(self, config_file):
+
+        self.config = self._load_config(config_file)
+
+        self._ssl_domain = None
+        self._handler = None
+        self._container = None
+        self._sms = None
+
+    def _load_config(self, config_file):
+        return yaml_file_to_dict(config_file)
 
 
-def create_app():
-    current_dir = os.path.dirname(os.path.realpath(__file__))
-    app = SubscriberApp(os.path.join(current_dir, 'config.yml'))
+    @property
+    def ssl_domain(self):
+        if not self._ssl_domain:
+            broker_conf = self.config['BROKER']
 
-    while not app.is_running():
-        pass
+            self._ssl_domain = get_ssl_domain(
+                certificate_db=broker_conf['cert_db'],
+                cert_file=broker_conf['cert_file'],
+                cert_key=broker_conf['cert_key'],
+                password=broker_conf['cert_password']
+            )
 
-    return app
+        return self._ssl_domain
 
-app = create_app()
+    @property
+    def sms(self):
+        if not self._sms:
+            sm_config = self.config['SUBSCRIPTION-MANAGER']
+            subscription_manager_client = SubscriptionManagerClient.create(
+                host=sm_config['host'],
+                https=sm_config['https'],
+                username=sm_config['username'],
+                password=sm_config['password']
+            )
+            self._sms = SubscriptionManagerService(client=subscription_manager_client)
 
-# basic functions of the app
-#
-# >>> from functools import partial
-# >>> app.subscribe('arrivals.paris', partial(handler, topic='arrivals.paris'))
-# >>> app.pause('arrivals.paris')
-# >>> app.resume('arrivals.paris')
-# >>> app.unsubscribe('arrivals.paris')
+        return self._sms

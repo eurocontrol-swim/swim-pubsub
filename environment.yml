@@ -36,5 +36,5 @@ dependencies:
     - python-qpid-proton==0.28.0
     - requests==2.22.0
     - rest-client==0.0.5
-    - subscription-manager-client==0.0.4
+    - subscription-manager-client==0.0.7
     - urllib3==1.25.2

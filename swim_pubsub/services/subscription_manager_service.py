@@ -27,10 +27,16 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-from subscription_manager_client.models import Topic
+
+from rest_client.errors import APIError
+from subscription_manager_client.models import Topic, Subscription
 from subscription_manager_client.subscription_manager import SubscriptionManagerClient
 
 __author__ = "EUROCONTROL (SWIM)"
+
+
+class SubscriptionManagerServiceError(Exception):
+    pass
 
 
 class SubscriptionManagerService:
@@ -54,10 +60,65 @@ class SubscriptionManagerService:
 
         topic_names_to_create = set(topic_names) - set(db_topic_names)
         topic_names_to_delete = set(db_topic_names) - set(topic_names)
-        db_topics_to_delete = [topic for topic in db_topic_names if topic.name in topic_names_to_delete]
+        db_topics_to_delete = [topic for topic in db_topics if topic.name in topic_names_to_delete]
 
         for topic_name in topic_names_to_create:
-            self._create_topic(topic_name)
+            self.create_topic(topic_name)
 
         for db_topic in db_topics_to_delete:
             self.client.delete_topic_by_id(db_topic.id)
+
+    def _get_subscription_by_queue(self, queue):
+        subscriptions = self.client.get_subscriptions(queue=queue)
+
+        if not subscriptions:
+            raise SubscriptionManagerServiceError(f"No subscription found for queue '{queue}'")
+
+        return subscriptions[0]
+
+    def subscribe(self, topic_name):
+        db_topics = self.client.get_topics()
+
+        try:
+            topic = [topic for topic in db_topics if topic.name == topic_name][0]
+        except IndexError:
+            raise SubscriptionManagerServiceError(f"{topic_name} is not registered")
+
+        subscription = Subscription(
+            topic_id=topic.id
+        )
+
+        try:
+            db_subscription = self.client.post_subscription(subscription)
+        except APIError as e:
+            raise SubscriptionManagerServiceError(f"Error while subscribing to {topic_name}: {str(e)}")
+
+        return db_subscription.queue
+
+    def unsubscribe(self, queue):
+        subscription = self._get_subscription_by_queue(queue)
+
+        try:
+            self.client.delete_subscription_by_id(subscription.id)
+        except APIError as e:
+            raise SubscriptionManagerServiceError(f"Error while deleting subscription '{subscription.id}': {str(e)}")
+
+    def pause(self, queue):
+        subscription = self._get_subscription_by_queue(queue)
+
+        subscription.active = False
+
+        try:
+            self.client.put_subscription(subscription.id, subscription)
+        except APIError as e:
+            raise SubscriptionManagerServiceError(f"Error while updating subscription '{subscription.id}': {str(e)}")
+
+    def resume(self, queue):
+        subscription = self._get_subscription_by_queue(queue)
+
+        subscription.active = True
+
+        try:
+            self.client.put_subscription(subscription.id, subscription)
+        except APIError as e:
+            raise SubscriptionManagerServiceError(f"Error while updating subscription '{subscription.id}': {str(e)}")

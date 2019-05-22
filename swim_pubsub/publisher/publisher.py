@@ -29,38 +29,26 @@ Details on EUROCONTROL: http://www.eurocontrol.int
 """
 from proton._reactor import Container
 from rest_client.errors import APIError
-from subscription_manager_client.subscription_manager import SubscriptionManagerClient
 
-from swim_pubsub.auth import get_ssl_domain
-from swim_pubsub.config import yaml_file_to_dict
+from swim_pubsub.base import PubSubApp
 from swim_pubsub.publisher.handler import PublisherHandler
-from swim_pubsub.services.subscription_manager_service import SubscriptionManagerService
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-class PublisherError(Exception):
+class PublisherAppError(Exception):
     pass
 
 
-class PublisherApp:
+class PublisherApp(PubSubApp):
 
     def __init__(self, config_file):
+        PubSubApp.__init__(self, config_file)
         self.topics_dict = {}
-
-        self.config = self._load_config(config_file)
-
-        self._ssl_domain = None
-        self._handler = None
-        self._container = None
-        self._sms = None
-
-    def _load_config(self, config_file):
-        return yaml_file_to_dict(config_file)
 
     def register_topic(self, topic):
         if topic.name in self.topics_dict:
-            raise PublisherError('topic already exists')
+            raise PublisherAppError('topic already exists')
 
         self.topics_dict[topic.name] = topic
 
@@ -72,34 +60,6 @@ class PublisherApp:
     def topics(self):
         return list(self.topics_dict.values())
 
-    @property
-    def ssl_domain(self):
-        if not self._ssl_domain:
-            broker_conf = self.config['BROKER']
-
-            self._ssl_domain = get_ssl_domain(
-                certificate_db=broker_conf['cert_db'],
-                cert_file=broker_conf['cert_file'],
-                cert_key=broker_conf['cert_key'],
-                password=broker_conf['cert_password']
-            )
-
-        return self._ssl_domain
-
-    @property
-    def sms(self):
-        if not self._sms:
-            sm_config = self.config['SUBSCRIPTION-MANAGER']
-            subscription_manager_client = SubscriptionManagerClient.create(
-                host=sm_config['host'],
-                https=sm_config['https'],
-                username=sm_config['username'],
-                password=sm_config['password']
-            )
-            self._sms = SubscriptionManagerService(client=subscription_manager_client)
-
-        return self._sms
-
     def _populate_topics(self):
         topics_to_populate = [key for topic in self.topics for key in topic.route_keys]
         for topic in topics_to_populate:
@@ -110,10 +70,10 @@ class PublisherApp:
 
     def run(self):
         if not self.config:
-            raise PublisherError("No configuration found")
+            raise PublisherAppError("No configuration found")
 
         if not self.topics_dict:
-            raise PublisherError('At least one topic is required to be registered')
+            raise PublisherAppError('At least one topic is required to be registered')
 
         print(f"Populating the topics to SubscriptionManager\n")
         self._populate_topics()

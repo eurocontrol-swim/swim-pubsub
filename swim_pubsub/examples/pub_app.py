@@ -33,25 +33,10 @@ from functools import partial
 from opensky_network_client.opensky_network import OpenskyNetworkClient
 from rest_client.errors import APIError
 
-from swim_pubsub.middleware import PublisherMiddleware
 from swim_pubsub.publisher.handler import Topic
 from swim_pubsub.publisher.publisher import PublisherApp
 
 __author__ = "EUROCONTROL (SWIM)"
-
-
-class MyMiddleware(PublisherMiddleware):
-
-    def sync_topics(self, topics, event=None):
-        # do something
-        pass
-
-    def load_subscriptions(self, event=None):
-        with open('/home/alex/subscriptions.json') as f:
-            data = f.read()
-        import json
-        event.subscriptions = json.loads(data)
-        self.injector.trigger(event)
 
 
 def _today():

@@ -27,35 +27,5 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-import os
-
-from swim_pubsub.subscriber.subscriber import SubscriberApp
 
 __author__ = "EUROCONTROL (SWIM)"
-
-
-def handler(body, topic):
-
-    with open(f'/home/alex/data/{topic}', 'a') as f:
-        f.write(f'{topic}: {body["data"]}\n')
-        f.write(f'Received batch #{body["batch"]}\n\n')
-
-
-def create_app():
-    current_dir = os.path.dirname(os.path.realpath(__file__))
-    app = SubscriberApp(os.path.join(current_dir, 'config.yml'))
-
-    while not app.is_running():
-        pass
-
-    return app
-
-app = create_app()
-
-# basic functions of the app
-#
-# >>> from functools import partial
-# >>> app.subscribe('arrivals.paris', partial(handler, topic='arrivals.paris'))
-# >>> app.pause('arrivals.paris')
-# >>> app.resume('arrivals.paris')
-# >>> app.unsubscribe('arrivals.paris')

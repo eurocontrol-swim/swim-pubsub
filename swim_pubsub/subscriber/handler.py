@@ -27,45 +27,44 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-from abc import ABC, abstractmethod
-
-from proton._reactor import EventInjector
+from proton._handlers import MessagingHandler
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-class PublisherMiddleware(ABC):
+class SubscriberHandler(MessagingHandler):
 
-    def __init__(self, injector=None):
-        self.injector = injector or EventInjector()
+    def __init__(self, host, ssl_domain):
+        MessagingHandler.__init__(self)
 
-    @abstractmethod
-    def sync_topics(self, topics, event=None):
-        pass
+        self.host = f"amqps://{host}"
+        self.ssl_domain = ssl_domain
+        self.receivers_dict = {}
+        self._started = False
 
-    @abstractmethod
-    def load_subscriptions(self, event=None):
-        pass
+    def on_start(self, event):
+        self.container = event.container
+        self.conn = self.container.connect(self.host, ssl_domain=self.ssl_domain)
+        self._started = True
 
+    def add_receiver(self, queue, data_handler):
+        receiver = self.container.create_receiver(self.conn, queue)
+        print(f"created receiver {receiver}")
+        print(f'start receiving on: {queue}')
 
-class SubscriberMiddleware(ABC):
+        self.receivers_dict[receiver] = (queue, data_handler)
 
-    # @abstractmethod
-    # def get_topics(self):
-    #     pass
+    def remove_receiver(self, queue):
+        for receiver, (receiver_queue, _) in self.receivers_dict.items():
+            if queue == receiver_queue:
+                receiver.close()
+                print(f"closed receiver {receiver} on queue {queue}")
+                del self.receivers_dict[receiver]
+                break
 
-    @abstractmethod
-    def subscribe(self, topic):
-        pass
+    def on_message(self, event):
+        _, data_handler = self.receivers_dict[event.receiver]
+        data_handler(event.message.body)
 
-    @abstractmethod
-    def unsubscribe(self, topic):
-        pass
-
-    @abstractmethod
-    def pause(self, topic):
-        pass
-
-    @abstractmethod
-    def resume(self, topic):
-        pass
+    def has_started(self):
+        return self._started
