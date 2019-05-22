@@ -33,8 +33,9 @@ from functools import partial
 from opensky_network_client.opensky_network import OpenskyNetworkClient
 from rest_client.errors import APIError
 
-from swim_pubsub.publisher import Publisher, Route
 from swim_pubsub.middleware import PublisherMiddleware
+from swim_pubsub.publisher.handler import Topic
+from swim_pubsub.publisher.publisher import PublisherApp
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -89,8 +90,7 @@ class OpenSkyNetworkDataHandler:
 
 
 if __name__ == '__main__':
-    # app = Publisher('localhost:5671', MyMiddleware())
-    app = Publisher()
+    app = PublisherApp('config.yml')
 
     data_handler = OpenSkyNetworkDataHandler()
 
@@ -103,20 +103,17 @@ if __name__ == '__main__':
         'Madrid': 'LECU'
     }
 
-    # arrivals_topic = Topic('arrivals')
-    # departures_topic = Topic('departures')
+    arrivals_topic = Topic('arrivals', 5)
+    departures_topic = Topic('departures', 5)
 
     for airport, icao24 in airports.items():
         arrivals_handler = partial(data_handler.arrivals_today_handler, icao24)
         departures_handler = partial(data_handler.departures_today_handler, icao24)
 
-        app.register_route(Route(topic="arrivals",
-                                 key=f"arrivals.{airport.lower()}",
-                                 handler=arrivals_handler,
-                                 interval=5))
-        app.register_route(Route(topic="departures",
-                                 key=f"departures.{airport.lower()}",
-                                 handler=departures_handler,
-                                 interval=5))
+        arrivals_topic.add_route(key=f"arrivals.{airport.lower()}", handler=arrivals_handler)
+        departures_topic.add_route(key=f"departures.{airport.lower()}", handler=departures_handler)
+
+    app.register_topic(arrivals_topic)
+    app.register_topic(departures_topic)
 
     app.run()

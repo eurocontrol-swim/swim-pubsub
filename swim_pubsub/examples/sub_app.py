@@ -45,14 +45,17 @@ class MyMiddleware(SubscriberMiddleware):
 
     def get_queue_from_topic(self, topic):
         bindings = self.rabbit_client.get_bindings()
-        queue = [
+        queues = [
             b['destination']
             for b in bindings
             if b['destination_type'] == 'queue'
             and b['routing_key'] == topic
-        ][0]
+        ]
 
-        return queue
+        if not queues:
+            return
+
+        return queues[0]
 
     def subscribe(self, topic):
         key = topic
@@ -69,6 +72,10 @@ class MyMiddleware(SubscriberMiddleware):
 
     def unsubscribe(self, topic):
         queue = self.get_queue_from_topic(topic)
+        if not queue:
+            print(f'No queue found for {topic}')
+            return
+
         print(f"deleting {queue}")
         r = self.rabbit_client.delete_queue(queue)
         print(r)

@@ -29,6 +29,7 @@ Details on EUROCONTROL: http://www.eurocontrol.int
 """
 
 import typing as t
+from urllib.parse import quote
 
 from requests import Session, Response
 
@@ -37,17 +38,22 @@ __author__ = "EUROCONTROL (SWIM)"
 
 class RabbitmqManagementClient:
 
-    def __init__(self, host, user='guest', password='guest', verify=True, vhost="%2F"):
+    def __init__(self, host, user='guest', password='guest', verify=True, vhost="/"):
         self.host = host
-        self.vhost = vhost
+        self._vhost = vhost
         self._session = Session()
         self._session.verify = verify
         self._session.auth = (user, password)
 
         self._create_topic_url = '{base_url}/api/exchanges/%2F/{name}'
 
+    @property
+    def vhost(self):
+        return quote(self._vhost, safe='')
+
     def _get_create_topic_url(self, name):
         return f'{self.host}/api/exchanges/{self.vhost}/{name}'
+
 
     def _get_create_queue_url(self, name):
         return f'{self.host}/api/queues/{self.vhost}/{name}'
@@ -78,8 +84,8 @@ class RabbitmqManagementClient:
         data = {
             "durable": durable,
             "auto_delete": False,
-            "arguments": {},
-            "node": "rabbit@my-rabbit"
+            "arguments": {}
+            # , "node": "rabbit@my-rabbit"
         }
 
         return self._session.put(url, json=data)

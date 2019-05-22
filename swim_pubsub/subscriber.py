@@ -58,7 +58,9 @@ class SubscriberHandler(MessagingHandler):
         return ssl_domain
 
     def add_subscription(self, queue, data_handler):
+        # receiver = self.container.create_receiver(self.conn, queue)
         receiver = self.container.create_receiver(self.conn, queue)
+        print(f"created receiver {receiver}")
         print(f'start receiving on: {queue}')
 
         self.receivers[receiver] = (queue, data_handler)
@@ -67,6 +69,7 @@ class SubscriberHandler(MessagingHandler):
         for receiver, (receiver_queue, _) in self.receivers.items():
             if queue == receiver_queue:
                 receiver.close()
+                print(f"closed receiver {receiver} on queue {queue}")
                 del self.receivers[receiver]
                 break
 

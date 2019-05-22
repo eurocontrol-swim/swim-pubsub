@@ -36,86 +36,97 @@ from proton._reactor import Container, EventInjector
 __author__ = "EUROCONTROL (SWIM)"
 
 
-# class Topic(MessagingHandler):
-#
-#     def __init__(self, name, interval):
-#         MessagingHandler.__init__(self)
-#
-#         self.name = name
-#         self.name = name
-#         self.routes = []
-#         self.endpoint = f'/exchange/{self.name}'
-#
-#         self.sender = None
-#
-#     def add_route(self, key, handler, interval):
-#         route = Route(key, handler, interval, EventInjector())
-#         self.routes.append(route)
-#
-#     def on_data(self, event):
-#         if self.sender and self.sender.credit:
-#             self.sender.send(event.data)
-#             print(event.data)
-#
-#
-# class Route(MessagingHandler):
-#
-#     def __init__(self, key, handler, interval, event_injector):
-#         MessagingHandler.__init__(self)
-#
-#         self.key = key
-#         self.interval = interval
-#         self.handler = handler
-#         self.counter = 0
-#         self.event_injector = event_injector
-#
-#     def produce_data(self):
-#         data = self.handler()
-#         self.counter += 1
-#
-#         return Message(body={'data': data, 'batch': self.counter}, subject=self.key)
-#
-#     def on_timer_task(self, event):
-#         data = self.produce_data()
-#
-#         event.container.schedule(self.interval, self)
+class Topic(MessagingHandler):
 
-class Route(MessagingHandler):
-
-    def __init__(self, topic, key, handler, interval):
+    def __init__(self, name, interval):
         MessagingHandler.__init__(self)
 
-        self.topic = topic
-        self.key = key
+        self.name = name
         self.interval = interval
-        self.topic_handler = handler
-        self.sender = None
-        self.counter = 0
-        self.endpoint = f'/topic/{self.key}' if topic == 'default' else f'/exchange/{self.topic}/{self.key}'
-        # self.endpoint = f'/topic/{self.key}' if topic == 'default' else f'/exchange/{self.topic}'
+        self.routes = []
+        self.endpoint = f'/exchange/{self.name}'
+
+        self._sender = None
+
+    @property
+    def sender(self):
+        return self._sender
+
+    @sender.setter
+    def sender(self, value):
+        if not self._sender:
+            self._sender = value
+
+    def add_route(self, key, handler):
+        route = Route(key, handler)
+        self.routes.append(route)
 
     def dispatch(self):
-        data = self.topic_handler()
+        if not self.sender:
+            return
 
-        if self.sender and self.sender.credit:
-            msg = Message(body={'data': data, 'batch': self.counter})
-            # msg = Message(body={'data': data, 'batch': self.counter}, subject=self.key)
-            self.sender.send(msg)
-            print(data)
-            self.counter += 1
+        for route in self.routes:
+            data = route.produce_data()
+            if self.sender.credit:
+                self.sender.send(data)
+                print(data)
 
     def on_timer_task(self, event):
         self.dispatch()
         event.container.schedule(self.interval, self)
 
 
+class Route:
+
+    def __init__(self, key, handler):
+
+        self.key = key
+        self.handler = handler
+        self.counter = 0
+
+    def produce_data(self):
+        data = self.handler()
+        self.counter += 1
+
+        return Message(body={'data': data, 'batch': self.counter}, subject=self.key)
+
+
+# class Route(MessagingHandler):
+#
+#     def __init__(self, topic, key, handler, interval):
+#         MessagingHandler.__init__(self)
+#
+#         self.topic = topic
+#         self.key = key
+#         self.interval = interval
+#         self.topic_handler = handler
+#         self.sender = None
+#         self.counter = 0
+#         self.endpoint = f'/topic/{self.key}' if topic == 'default' else f'/exchange/{self.topic}/{self.key}'
+#         # self.endpoint = f'/topic/{self.key}' if topic == 'default' else f'/exchange/{self.topic}'
+#
+#     def dispatch(self):
+#         data = self.topic_handler()
+#
+#         if self.sender and self.sender.credit:
+#             msg = Message(body={'data': data, 'batch': self.counter})
+#             # msg = Message(body={'data': data, 'batch': self.counter}, subject=self.key)
+#             self.sender.send(msg)
+#             print(data)
+#             self.counter += 1
+#
+#     def on_timer_task(self, event):
+#         self.dispatch()
+#         event.container.schedule(self.interval, self)
+
+
 class PublisherHandler(MessagingHandler):
 
-    def __init__(self, routes):
+    def __init__(self, topics):
         MessagingHandler.__init__(self)
 
         # self.pm = publisher_middleware
-        self.routes = routes
+        self.topics = topics
 
     def _get_ssl_domain(self):
         ssl_domain = SSLDomain(SSLDomain.VERIFY_PEER)
@@ -135,16 +146,16 @@ class PublisherHandler(MessagingHandler):
         # self.pm.sync_topics(self.topics)
         # self.container.schedule(1, self)
 
-        for route in self.routes:
-            self._init_route(route)
+        for topic in self.topics:
+            self._init_topic(topic)
 
     # def on_timer_task(self, event):
     #     self.request_subscriptions()
     #     self.container.schedule(10, self)
 
-    def _init_route(self, route):
-        route.sender = self.container.create_sender(self.conn, route.endpoint)
-        self.container.schedule(route.interval, route)
+    def _init_topic(self, topic):
+        topic.sender = self.container.create_sender(self.conn, topic.endpoint)
+        self.container.schedule(topic.interval, topic)
     #
     # def on_subscriptions_loaded(self, event):
     #     self._update_subscriptions(event.subscriptions)
@@ -172,13 +183,13 @@ class Publisher:
         #
         # self.url = url
         # self.publisher_middleware = publisher_middleware
-        self.routes = {}
+        self.topics = {}
 
-    def register_route(self, route):
-        if route.key in self.routes:
-            raise PublisherError('route already exists')
+    def register_topic(self, topic):
+        if topic.name in self.topics:
+            raise PublisherError('topic already exists')
 
-        self.routes[route.key] = route
+        self.topics[topic.name] = topic
     # def register_topic(self, topic_name, data_handler):
     #     address = self._get_address(topic_name)
     #
@@ -190,11 +201,11 @@ class Publisher:
     #     self.topics.append(topic)
 
     def run(self):
-        if not self.routes:
+        if not self.topics:
             raise PublisherError('At least one route is required to be registered')
 
         try:
-            container = Container(PublisherHandler(self.routes.values()))
+            container = Container(PublisherHandler(self.topics.values()))
             container.run()
         except KeyboardInterrupt:
             pass
