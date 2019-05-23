@@ -41,7 +41,7 @@ __author__ = "EUROCONTROL (SWIM)"
 
 def _today():
     today = datetime.today()
-    begin = datetime(today.year, today.month, today.day, 0, 0) - timedelta(days=4)
+    begin = datetime(today.year, today.month, today.day, 0, 0) - timedelta(days=1)
     end = datetime(today.year, today.month, today.day, 23, 59, 59)
 
     return int(begin.timestamp()), int(end.timestamp())
@@ -51,7 +51,7 @@ class OpenSkyNetworkDataHandler:
     def __init__(self):
         self.client = OpenskyNetworkClient.create('opensky-network.org')
 
-    def arrivals_today_handler(self, icao24):
+    def arrivals_today_handler(self, icao24, pre_data=None):
         begin, end = _today()
 
         try:
@@ -62,7 +62,7 @@ class OpenSkyNetworkDataHandler:
         return "\n".join(f'{arr["icao24"]} arrived from {arr["estDepartureAirport"]} to {arr["estArrivalAirport"]}'
                          for arr in result)
 
-    def departures_today_handler(self, icao24):
+    def departures_today_handler(self, icao24, pre_data=None):
         begin, end = _today()
 
         try:

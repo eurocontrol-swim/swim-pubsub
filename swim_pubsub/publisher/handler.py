@@ -35,11 +35,12 @@ __author__ = "EUROCONTROL (SWIM)"
 
 class Topic(MessagingHandler):
 
-    def __init__(self, name, interval):
+    def __init__(self, name, interval, handler=None):
         MessagingHandler.__init__(self)
 
         self.name = name
         self.interval = interval
+        self.handler = handler
         self.routes = []
 
         self._sender = None
@@ -65,8 +66,10 @@ class Topic(MessagingHandler):
         if not self.sender:
             return
 
+        pre_data = self.handler() if self.handler else None
+
         for route in self.routes:
-            data = route.produce_data()
+            data = route.produce_data(pre_data=pre_data)
             if self.sender.credit:
                 self.sender.send(data)
                 print(data)
@@ -84,8 +87,8 @@ class Route:
         self.handler = handler
         self.counter = 0
 
-    def produce_data(self):
-        data = self.handler()
+    def produce_data(self, pre_data=None):
+        data = self.handler(pre_data=pre_data)
         self.counter += 1
 
         return Message(body={'data': data, 'batch': self.counter}, subject=self.key)

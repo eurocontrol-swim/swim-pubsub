@@ -33,7 +33,7 @@ __author__ = 'EUROCONTROL (SWIM)'
 
 setup(
     name='swim-pubsub',
-    version='0.0.3',
+    version='0.0.4',
     description='SWIM Publish Subscribe mini framework',
     author='EUROCONTROL (SWIM)',
     author_email='',
@@ -42,8 +42,7 @@ setup(
     install_requires=[],
     tests_require=[
         'pytest',
-        'pytest-cov',
-        'python-qpid_proton'
+        'pytest-cov'
     ],
     platforms=['Any'],
     license='see LICENSE',
