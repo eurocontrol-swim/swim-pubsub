@@ -44,6 +44,13 @@ class SubscriptionManagerFacade:
     def __init__(self, client: SubscriptionManagerClient):
         self.client: SubscriptionManagerClient = client
 
+    def get_topics(self):
+        db_topics = self.client.get_topics()
+
+        result = [topic.name for topic in db_topics]
+
+        return result
+
     def create_topics(self, topic_names):
         for topic_name in topic_names:
             self.create_topic(topic_name)
