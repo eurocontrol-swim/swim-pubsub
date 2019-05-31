@@ -61,6 +61,10 @@ class SubscriberApp(PubSubApp):
         self._container.run()
 
     @sms_error_handler
+    def get_topics(self):
+        return self.sm_facade.get_topics()
+
+    @sms_error_handler
     def subscribe(self, topic_name, data_handler):
         queue = self.sm_facade.subscribe(topic_name)
         print("Subscribed in SM")
