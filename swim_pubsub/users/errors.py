@@ -27,64 +27,9 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-from proton._reactor import Container
-from rest_client.errors import APIError
-
-from swim_pubsub.base import PubSubApp
-from swim_pubsub.publisher.handler import PublisherHandler
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-class PublisherAppError(Exception):
+class UserError(Exception):
     pass
-
-
-class PublisherApp(PubSubApp):
-
-    def __init__(self, config_file):
-        PubSubApp.__init__(self, config_file)
-        self.topics_dict = {}
-
-    def register_topic(self, topic):
-        if topic.name in self.topics_dict:
-            raise PublisherAppError('topic already exists')
-
-        self.topics_dict[topic.name] = topic
-
-    @property
-    def topic_names(self):
-        return list(self.topics_dict.keys())
-
-    @property
-    def topics(self):
-        return list(self.topics_dict.values())
-
-    def _populate_topics(self):
-        topics_to_populate = [key for topic in self.topics for key in topic.route_keys]
-        for topic in topics_to_populate:
-            try:
-                self.sm_facade.create_topic(topic)
-            except APIError as e:
-                print(f"{topic}: {str(e)}")
-
-    def run(self):
-        if not self.config:
-            raise PublisherAppError("No configuration found")
-
-        if not self.topics_dict:
-            raise PublisherAppError('At least one topic is required to be registered')
-
-        print(f"Populating the topics to SubscriptionManager\n")
-        self._populate_topics()
-
-        try:
-            self._handler = PublisherHandler(
-                host=self.config['BROKER']['host'],
-                ssl_domain=self.ssl_domain,
-                topics=self.topics_dict.values()
-            )
-            self._container = Container(self._handler)
-            self._container.run()
-        except KeyboardInterrupt:
-            pass

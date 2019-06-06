@@ -27,44 +27,54 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-from proton._handlers import MessagingHandler
+
+from swim_pubsub.core.utils import yaml_file_to_dict, get_ssl_domain
+from swim_pubsub.core.handlers import PublisherHandler, SubscriberHandler
+from swim_pubsub.core.base import PublisherApp, SubscriberApp
+from swim_pubsub.services.subscription_manager import SubscriptionManagerConfig
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-class SubscriberHandler(MessagingHandler):
+class AppFactory:
 
-    def __init__(self, host, ssl_domain):
-        MessagingHandler.__init__(self)
+    @classmethod
+    def create_publisher_app_from_config(cls, config_file):
+        return cls._create_app_from_config(config_file, PublisherHandler, PublisherApp)
 
-        self.host = f"amqps://{host}"
-        self.ssl_domain = ssl_domain
-        self.receivers_dict = {}
-        self._started = False
+    @classmethod
+    def create_subscriber_app_from_config(cls, config_file):
+        return cls._create_app_from_config(config_file, SubscriberHandler, SubscriberApp)
 
-    def on_start(self, event):
-        self.container = event.container
-        self.conn = self.container.connect(self.host, ssl_domain=self.ssl_domain)
-        self._started = True
+    @classmethod
+    def _create_app_from_config(cls, config_file, msg_handler_class, app_class):
+        config = yaml_file_to_dict(config_file)
 
-    def add_receiver(self, queue, data_handler):
-        receiver = self.container.create_receiver(self.conn, queue)
-        print(f"created receiver {receiver}")
-        print(f'start receiving on: {queue}')
+        msg_handler = cls._create_msg_handler_from_config(config['BROKER'], msg_handler_class)
 
-        self.receivers_dict[receiver] = (queue, data_handler)
+        sm_config = cls._create_sm_config_from_config(config['SUBSCRIPTION-MANAGER'])
 
-    def remove_receiver(self, queue):
-        for receiver, (receiver_queue, _) in self.receivers_dict.items():
-            if queue == receiver_queue:
-                receiver.close()
-                print(f"closed receiver {receiver} on queue {queue}")
-                del self.receivers_dict[receiver]
-                break
+        return app_class(msg_handler, sm_config)
 
-    def on_message(self, event):
-        _, data_handler = self.receivers_dict[event.receiver]
-        data_handler(event.message.body)
+    @classmethod
+    def _create_sm_config_from_config(cls, config):
+        sm_config = SubscriptionManagerConfig(
+            host=config['host'],
+            https=config['https'],
+            timeout=config['timeout'],
+        )
 
-    def has_started(self):
-        return self._started
+        return sm_config
+
+    @classmethod
+    def _create_msg_handler_from_config(cls, config, msg_handler_class):
+        ssl_domain = get_ssl_domain(
+            certificate_db=config['cert_db'],
+            cert_file=config['cert_file'],
+            cert_key=config['cert_key'],
+            password=config['cert_password']
+        )
+        msg_handler = msg_handler_class(host=config['host'], ssl_domain=ssl_domain)
+
+        return msg_handler
+

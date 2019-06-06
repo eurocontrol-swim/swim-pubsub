@@ -33,8 +33,8 @@ from functools import partial
 from opensky_network_client.opensky_network import OpenskyNetworkClient
 from rest_client.errors import APIError
 
-from swim_pubsub.publisher.handler import Topic
-from swim_pubsub.publisher.publisher import PublisherApp
+from swim_pubsub.core.factory import AppFactory
+from swim_pubsub.core.handlers import Topic
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -75,7 +75,8 @@ class OpenSkyNetworkDataHandler:
 
 
 if __name__ == '__main__':
-    app = PublisherApp('config.yml')
+
+    pub_app = AppFactory.create_publisher_app_from_config('config.yml')
 
     data_handler = OpenSkyNetworkDataHandler()
 
@@ -98,7 +99,8 @@ if __name__ == '__main__':
         arrivals_topic.add_route(key=f"arrivals.{airport.lower()}", handler=arrivals_handler)
         departures_topic.add_route(key=f"departures.{airport.lower()}", handler=departures_handler)
 
-    app.register_topic(arrivals_topic)
-    app.register_topic(departures_topic)
+    publisher = pub_app.create_publisher('test', 'test')
+    publisher.register_topic(arrivals_topic)
+    publisher.register_topic(departures_topic)
 
-    app.run()
+    pub_app.run()

@@ -27,49 +27,90 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-import threading
+from functools import wraps
 
-from proton._reactor import Container
+from rest_client.errors import APIError
 
-from swim_pubsub.base import PubSubApp
-from swim_pubsub.subscriber.utils import sms_error_handler
-from swim_pubsub.subscriber.handler import SubscriberHandler
+from swim_pubsub.services.subscription_manager import SubscriptionManagerServiceError
+from swim_pubsub.users.factory import UserFactory
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-class SubscriberApp(PubSubApp):
+class User(UserFactory):
 
-    def __init__(self, config_file):
-        PubSubApp.__init__(self, config_file)
+    def __init__(self, msg_handler, sm_service):
+        self.msg_handler = msg_handler
+        self.sm_service = sm_service
+
+    @property
+    def is_publisher(self):
+        return False
+
+    @property
+    def is_subscriber(self):
+        return False
+
+
+class Publisher(User):
+
+    def __init__(self, msg_handler, sm_service):
+        User.__init__(self, msg_handler, sm_service)
+        self.topics_dict = {}
+
+    @property
+    def topics(self):
+        return list(self.topics_dict.values())
+
+    def is_publisher(self):
+        return True
+
+    def register_topic(self, topic):
+        if topic.name in self.topics_dict:
+            raise Exception('topic already exists')
+
+        self.topics_dict[topic.name] = topic
+        self.msg_handler.add_topic(topic)
+
+    def populate_topics(self):
+        topics_to_populate = [key for topic in self.topics for key in topic.route_keys]
+
+        for topic in topics_to_populate:
+            try:
+                self.sm_service.create_topic(topic)
+            except APIError as e:
+                print(f"{topic}: {str(e)}")
+
+
+def sms_error_handler(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except SubscriptionManagerServiceError as e:
+            print(str(e))
+    return wrapper
+
+
+class Subscriber(User):
+
+    def __init__(self, msg_handler, sm_service):
+        User.__init__(self, msg_handler, sm_service)
         self.subscriptions = {}
 
-        self._handler = SubscriberHandler(
-            host=self.config['BROKER']['host'],
-            ssl_domain=self.ssl_domain
-        )
-
-        self._thread = threading.Thread(target=self.run)
-        self._thread.daemon = True
-        self._thread.start()
-
-    def is_running(self):
-        return self._thread.is_alive() and self._handler.has_started()
-
-    def run(self):
-        self._container = Container(self._handler)
-        self._container.run()
+    def is_subscriber(self):
+        return True
 
     @sms_error_handler
     def get_topics(self):
-        return self.sm_facade.get_topics()
+        return self.sm_service.get_topics()
 
     @sms_error_handler
     def subscribe(self, topic_name, data_handler):
-        queue = self.sm_facade.subscribe(topic_name)
+        queue = self.sm_service.subscribe(topic_name)
         print("Subscribed in SM")
 
-        self._handler.add_receiver(queue, data_handler)
+        self.msg_handler.add_receiver(queue, data_handler)
         print('Created receiver')
 
         self.subscriptions[topic_name] = queue
@@ -78,22 +119,22 @@ class SubscriberApp(PubSubApp):
     def unsubscribe(self, topic_name):
         queue = self.subscriptions[topic_name]
 
-        self._handler.remove_receiver(queue)
+        self.msg_handler.remove_receiver(queue)
         print('Removed receiver')
 
-        self.sm_facade.unsubscribe(queue)
+        self.sm_service.unsubscribe(queue)
         print("Deleted subscription from SM")
 
     @sms_error_handler
     def pause(self, topic_name):
         queue = self.subscriptions[topic_name]
 
-        self.sm_facade.pause(queue)
+        self.sm_service.pause(queue)
         print("Paused subscription in SM")
 
     @sms_error_handler
     def resume(self, topic_name):
         queue = self.subscriptions[topic_name]
 
-        self.sm_facade.resume(queue)
+        self.sm_service.resume(queue)
         print("Resumed subscription in SM")
