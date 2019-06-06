@@ -85,7 +85,7 @@ class App(Proton):
 
 class PublisherApp(App):
 
-    def create_publisher(self, username, password):
+    def register_publisher(self, username, password):
         publisher = Publisher.create(self.messaging_handler, self.sm_config, username, password)
         self.users.append(publisher)
 
@@ -103,7 +103,7 @@ class PublisherApp(App):
 
 class SubscriberApp(App):
 
-    def create_subscriber(self, username, password):
+    def register_subscriber(self, username, password):
         subscriber = Subscriber.create(self.messaging_handler, self.sm_config, username, password)
         self.users.append(subscriber)
 

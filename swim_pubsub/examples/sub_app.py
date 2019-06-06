@@ -46,7 +46,7 @@ sub_app = AppFactory.create_subscriber_app_from_config(os.path.join(current_dir,
 
 sub_app.run(threaded=True)
 
-subscriber = sub_app.create_subscriber('test', 'test')
+subscriber = sub_app.register_subscriber('test', 'test')
 
 
 # basic functions of the core

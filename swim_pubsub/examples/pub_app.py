@@ -99,7 +99,7 @@ if __name__ == '__main__':
         arrivals_topic.add_route(key=f"arrivals.{airport.lower()}", handler=arrivals_handler)
         departures_topic.add_route(key=f"departures.{airport.lower()}", handler=departures_handler)
 
-    publisher = pub_app.create_publisher('test', 'test')
+    publisher = pub_app.register_publisher('test', 'test')
     publisher.register_topic(arrivals_topic)
     publisher.register_topic(departures_topic)
 

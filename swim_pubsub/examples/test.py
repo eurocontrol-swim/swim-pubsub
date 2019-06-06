@@ -33,4 +33,4 @@ __author__ = "EUROCONTROL (SWIM)"
 
 if __name__ == '__main__':
     pub_app = AppFactory.create_publisher_app_from_config('config.yml')
-    pub_app.create_publisher('test', 'test')
+    pub_app.register_publisher('test', 'test')
