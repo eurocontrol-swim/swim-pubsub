@@ -27,15 +27,10 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-from proton import SSLDomain
+from swim_pubsub.core.factory import AppFactory
 
 __author__ = "EUROCONTROL (SWIM)"
 
-
-def get_ssl_domain(certificate_db, cert_file, cert_key, password):
-    ssl_domain = SSLDomain(SSLDomain.VERIFY_PEER)
-
-    ssl_domain.set_trusted_ca_db(certificate_db)
-    ssl_domain.set_credentials(cert_file, cert_key, password)
-
-    return ssl_domain
+if __name__ == '__main__':
+    pub_app = AppFactory.create_publisher_app_from_config('config.yml')
+    pub_app.create_publisher('test', 'test')

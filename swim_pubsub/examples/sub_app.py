@@ -29,7 +29,7 @@ Details on EUROCONTROL: http://www.eurocontrol.int
 """
 import os
 
-from swim_pubsub.subscriber.subscriber import SubscriberApp
+from swim_pubsub.core.factory import AppFactory
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -41,21 +41,18 @@ def handler(body, topic):
         f.write(f'Received batch #{body["batch"]}\n\n')
 
 
-def create_app():
-    current_dir = os.path.dirname(os.path.realpath(__file__))
-    app = SubscriberApp(os.path.join(current_dir, 'config.yml'))
+current_dir = os.path.dirname(os.path.realpath(__file__))
+sub_app = AppFactory.create_subscriber_app_from_config(os.path.join(current_dir, 'config.yml'))
 
-    while not app.is_running():
-        pass
+sub_app.run(threaded=True)
 
-    return app
+subscriber = sub_app.create_subscriber('test', 'test')
 
-app = create_app()
 
-# basic functions of the app
+# basic functions of the core
 #
 # >>> from functools import partial
-# >>> app.subscribe('arrivals.paris', partial(handler, topic='arrivals.paris'))
-# >>> app.pause('arrivals.paris')
-# >>> app.resume('arrivals.paris')
-# >>> app.unsubscribe('arrivals.paris')
+# >>> subscriber.subscribe('arrivals.paris', partial(handler, topic='arrivals.paris'))
+# >>> subscriber.pause('arrivals.paris')
+# >>> subscriber.resume('arrivals.paris')
+# >>> subscriber.unsubscribe('arrivals.paris')

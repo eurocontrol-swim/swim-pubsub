@@ -9,5 +9,9 @@ BROKER:
 SUBSCRIPTION-MANAGER:
   host: 'localhost:8080'
   https: false
-  username: 'test'
-  password: 'test'
+  timeout: 30
+
+PUBLISHERS:
+  explorer:
+    username: 'test'
+    password: 'test'

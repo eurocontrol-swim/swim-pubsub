@@ -27,54 +27,26 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-from subscription_manager_client.subscription_manager import SubscriptionManagerClient
-
-from swim_pubsub.auth import get_ssl_domain
-from swim_pubsub.config import yaml_file_to_dict
-from swim_pubsub.services.subscription_manager_facade import SubscriptionManagerFacade
+import yaml
+from proton import SSLDomain
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-class PubSubApp:
+def yaml_file_to_dict(filename):
+    if not filename.endswith(".yml"):
+        raise ValueError("YAML config files should end with '.yml' extension (RTFMG).")
 
-    def __init__(self, config_file):
+    with open(filename) as f:
+        obj = yaml.load(f, Loader=yaml.FullLoader)
 
-        self.config = self._load_config(config_file)
-
-        self._ssl_domain = None
-        self._handler = None
-        self._container = None
-        self._sm_facade = None
-
-    def _load_config(self, config_file):
-        return yaml_file_to_dict(config_file)
+    return obj or None
 
 
-    @property
-    def ssl_domain(self):
-        if not self._ssl_domain:
-            broker_conf = self.config['BROKER']
+def get_ssl_domain(certificate_db, cert_file, cert_key, password):
+    ssl_domain = SSLDomain(SSLDomain.VERIFY_PEER)
 
-            self._ssl_domain = get_ssl_domain(
-                certificate_db=broker_conf['cert_db'],
-                cert_file=broker_conf['cert_file'],
-                cert_key=broker_conf['cert_key'],
-                password=broker_conf['cert_password']
-            )
+    ssl_domain.set_trusted_ca_db(certificate_db)
+    ssl_domain.set_credentials(cert_file, cert_key, password)
 
-        return self._ssl_domain
-
-    @property
-    def sm_facade(self):
-        if not self._sm_facade:
-            sm_config = self.config['SUBSCRIPTION-MANAGER']
-            subscription_manager_client = SubscriptionManagerClient.create(
-                host=sm_config['host'],
-                https=sm_config['https'],
-                username=sm_config['username'],
-                password=sm_config['password']
-            )
-            self._sm_facade = SubscriptionManagerFacade(client=subscription_manager_client)
-
-        return self._sm_facade
+    return ssl_domain
