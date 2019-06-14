@@ -27,29 +27,13 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-import logging
-
-from swim_pubsub.core.base import App
-from swim_pubsub.core.handlers import PublisherBrokerHandler, SubscriberBrokerHandler
-from swim_pubsub.core.utils import yaml_file_to_dict
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-def create_app_from_config(config_file, broker_handler_class):
-    config = yaml_file_to_dict(config_file)
-    handler = broker_handler_class.create_from_config(config['BROKER'])
-    app = App(handler)
-    app.config = config
-
-    logging.config.dictConfig(app.config['LOGGING'])
-
-    return app
+class AppError(Exception):
+    pass
 
 
-def create_publisher_app_from_config(config_file):
-    return create_app_from_config(config_file, broker_handler_class=PublisherBrokerHandler)
-
-
-def create_subscriber_app_from_config(config_file):
-    return create_app_from_config(config_file, broker_handler_class=SubscriberBrokerHandler)
+class BrokerHandlerError(Exception):
+    pass

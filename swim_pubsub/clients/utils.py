@@ -27,9 +27,21 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
+import logging
+from functools import wraps
+
+from swim_pubsub.services.subscription_manager import SubscriptionManagerServiceError
 
 __author__ = "EUROCONTROL (SWIM)"
 
+_logger = logging.getLogger(__name__)
 
-class UserError(Exception):
-    pass
+
+def sms_error_handler(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except SubscriptionManagerServiceError as e:
+            _logger.error("Error while accessing Subscription Manager: {str(e)}")
+    return wrapper

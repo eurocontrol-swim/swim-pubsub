@@ -39,14 +39,6 @@ class SubscriptionManagerServiceError(Exception):
     pass
 
 
-class SubscriptionManagerConfig:
-
-    def __init__(self, host, https, timeout=30):
-        self.host = host
-        self.https = https
-        self.timeout = timeout
-
-
 class SubscriptionManagerService:
 
     def __init__(self, client: SubscriptionManagerClient):

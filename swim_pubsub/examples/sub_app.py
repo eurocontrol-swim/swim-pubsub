@@ -29,7 +29,7 @@ Details on EUROCONTROL: http://www.eurocontrol.int
 """
 import os
 
-from swim_pubsub.core.factory import AppFactory
+from swim_pubsub.core.factory import create_subscriber_app_from_config
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -42,7 +42,7 @@ def handler(body, topic):
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
-sub_app = AppFactory.create_subscriber_app_from_config(os.path.join(current_dir, 'config.yml'))
+sub_app = create_subscriber_app_from_config(os.path.join(current_dir, 'config.yml'))
 
 sub_app.run(threaded=True)
 

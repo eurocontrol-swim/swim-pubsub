@@ -31,26 +31,23 @@ import threading
 
 from proton._reactor import Container
 
-from swim_pubsub.users.users import Publisher, Subscriber
+from swim_pubsub.clients.clients import Publisher, Subscriber, Client
+from swim_pubsub.core.errors import AppError
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-class Proton:
+class _ProtonContainer:
 
-    def __init__(self, messaging_handler, auto_run=False):
-        self.messaging_handler = messaging_handler
-
+    def __init__(self, handler=None):
+        self._handler = handler
         self._thread = None
-
-        if auto_run:
-            self.run()
 
     def is_running(self):
         if self._thread:
-            return self.messaging_handler.started and self._thread.is_alive()
+            return self._handler.started and self._thread.is_alive()
         else:
-            return self.messaging_handler.started
+            return self._handler.started
 
     def run(self, threaded=False):
         if threaded and not self.is_running():
@@ -62,49 +59,42 @@ class Proton:
         return self._run()
 
     def _run(self):
-        self._container = Container(self.messaging_handler)
+        self._container = Container(self._handler)
         self._container.run()
 
 
-class App(Proton):
+class App(_ProtonContainer):
 
-    def __init__(self, msg_handler, sm_config):
-        Proton.__init__(self, messaging_handler=msg_handler)
+    def __init__(self, handler):
+        super().__init__(handler=handler)
 
-        self.sm_config = sm_config
-        self.users = []
+        self._handler = handler
+        self._pre_run_actions = []
+        self.config = None
+        self.clients = []
 
-    @property
-    def publishers(self):
-        return [user for user in self.users if user.is_publisher]
-
-    @property
-    def subscribers(self):
-        return [user for user in self.users if user.is_subscriber]
-
-
-class PublisherApp(App):
-
-    def register_publisher(self, username, password):
-        publisher = Publisher.create(self.messaging_handler, self.sm_config, username, password)
-        self.users.append(publisher)
-
-        return publisher
-
-    def _populate_publisher_topics(self):
-        for publisher in self.publishers:
-            publisher.populate_topics()
+    def before_run(self, f):
+        self._pre_run_actions.append(f)
 
     def run(self, threaded=False):
-        self._populate_publisher_topics()
+        for action in self._pre_run_actions:
+            action()
 
         super().run(threaded=threaded)
 
+    def register_client(self, username, password, client_class=Client):
+        if client_class != Client:
+            if Client not in client_class.__bases__:
+                raise AppError(f"client_class should be Client or should inherit from Client")
 
-class SubscriberApp(App):
+        client = client_class.create(self._handler, self.config['SUBSCRIPTION-MANAGER'], username, password)
+
+        self.clients.append(client)
+
+        return client
+
+    def register_publisher(self, username, password):
+        return self.register_client(username, password, client_class=Publisher)
 
     def register_subscriber(self, username, password):
-        subscriber = Subscriber.create(self.messaging_handler, self.sm_config, username, password)
-        self.users.append(subscriber)
-
-        return subscriber
+        return self.register_client(username, password, client_class=Subscriber)

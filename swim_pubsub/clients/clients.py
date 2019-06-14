@@ -27,43 +27,69 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-from functools import wraps
+import logging
 
 from rest_client.errors import APIError
+from subscription_manager_client.subscription_manager import SubscriptionManagerClient
 
-from swim_pubsub.services.subscription_manager import SubscriptionManagerServiceError
-from swim_pubsub.users.factory import UserFactory
+from swim_pubsub.clients.utils import sms_error_handler
+from swim_pubsub.services.subscription_manager import SubscriptionManagerService
+from swim_pubsub.clients.errors import ClientError
 
 __author__ = "EUROCONTROL (SWIM)"
 
+_logger = logging.getLogger(__name__)
 
-class User(UserFactory):
+
+class Client:
 
     def __init__(self, msg_handler, sm_service):
         self.msg_handler = msg_handler
         self.sm_service = sm_service
 
-    @property
-    def is_publisher(self):
-        return False
+    @classmethod
+    def create(cls, msg_handler, sm_config, username, password):
+        sm_service = cls._create_sm_service(sm_config, username, password)
 
-    @property
-    def is_subscriber(self):
-        return False
+        return cls(msg_handler, sm_service)
+
+    @classmethod
+    def _create_sm_service(cls, config, username, password):
+        sm_client: SubscriptionManagerClient = SubscriptionManagerClient.create(
+            host=config['host'],
+            https=config['https'],
+            timeout=config['timeout'],
+            username=username,
+            password=password
+        )
+
+        if not cls._is_valid_user(sm_client):
+            raise ClientError('Invalid user credentials')
+
+        return SubscriptionManagerService(sm_client)
+
+    @staticmethod
+    def _is_valid_user(sm_client):
+        try:
+            sm_client.ping_credentials()
+        except APIError as e:
+            if e.status_code == 401:
+                return False
+            else:
+                raise
+
+        return True
 
 
-class Publisher(User):
+class Publisher(Client):
 
     def __init__(self, msg_handler, sm_service):
-        User.__init__(self, msg_handler, sm_service)
+        Client.__init__(self, msg_handler, sm_service)
         self.topics_dict = {}
 
     @property
     def topics(self):
         return list(self.topics_dict.values())
-
-    def is_publisher(self):
-        return True
 
     def register_topic(self, topic):
         if topic.name in self.topics_dict:
@@ -73,33 +99,20 @@ class Publisher(User):
         self.msg_handler.add_topic(topic)
 
     def populate_topics(self):
-        topics_to_populate = [key for topic in self.topics for key in topic.route_keys]
+        topics_to_populate = [key for topic in self.topics for key in topic.topic_ids]
 
         for topic in topics_to_populate:
             try:
-                self.sm_service.create_topic(topic)
+                self.sm_service.create_topic(topic, )
             except APIError as e:
-                print(f"{topic}: {str(e)}")
+                _logger.info(f"{topic}: {str(e)}")
 
 
-def sms_error_handler(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        try:
-            return f(*args, **kwargs)
-        except SubscriptionManagerServiceError as e:
-            print(str(e))
-    return wrapper
-
-
-class Subscriber(User):
+class Subscriber(Client):
 
     def __init__(self, msg_handler, sm_service):
-        User.__init__(self, msg_handler, sm_service)
+        Client.__init__(self, msg_handler, sm_service)
         self.subscriptions = {}
-
-    def is_subscriber(self):
-        return True
 
     @sms_error_handler
     def get_topics(self):
@@ -108,10 +121,10 @@ class Subscriber(User):
     @sms_error_handler
     def subscribe(self, topic_name, data_handler):
         queue = self.sm_service.subscribe(topic_name)
-        print("Subscribed in SM")
+        _logger.info("Subscribed in SM")
 
-        self.msg_handler.add_receiver(queue, data_handler)
-        print('Created receiver')
+        self.msg_handler.create_receiver(queue, data_handler)
+        _logger.info('Created receiver')
 
         self.subscriptions[topic_name] = queue
 
@@ -120,21 +133,21 @@ class Subscriber(User):
         queue = self.subscriptions[topic_name]
 
         self.msg_handler.remove_receiver(queue)
-        print('Removed receiver')
+        _logger.info('Removed receiver')
 
         self.sm_service.unsubscribe(queue)
-        print("Deleted subscription from SM")
+        _logger.info("Deleted subscription from SM")
 
     @sms_error_handler
     def pause(self, topic_name):
         queue = self.subscriptions[topic_name]
 
         self.sm_service.pause(queue)
-        print("Paused subscription in SM")
+        _logger.info("Paused subscription in SM")
 
     @sms_error_handler
     def resume(self, topic_name):
         queue = self.subscriptions[topic_name]
 
         self.sm_service.resume(queue)
-        print("Resumed subscription in SM")
+        _logger.info("Resumed subscription in SM")

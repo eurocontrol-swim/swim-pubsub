@@ -33,8 +33,8 @@ from functools import partial
 from opensky_network_client.opensky_network import OpenskyNetworkClient
 from rest_client.errors import APIError
 
-from swim_pubsub.core.factory import AppFactory
-from swim_pubsub.core.handlers import Topic
+from swim_pubsub.core.factory import create_publisher_app_from_config
+from swim_pubsub.core.handlers import TopicGroup
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -51,7 +51,7 @@ class OpenSkyNetworkDataHandler:
     def __init__(self):
         self.client = OpenskyNetworkClient.create('opensky-network.org')
 
-    def arrivals_today_handler(self, icao24, pre_data=None):
+    def arrivals_today_handler(self, icao24, group_data=None):
         begin, end = _today()
 
         try:
@@ -62,7 +62,7 @@ class OpenSkyNetworkDataHandler:
         return "\n".join(f'{arr["icao24"]} arrived from {arr["estDepartureAirport"]} to {arr["estArrivalAirport"]}'
                          for arr in result)
 
-    def departures_today_handler(self, icao24, pre_data=None):
+    def departures_today_handler(self, icao24, group_data=None):
         begin, end = _today()
 
         try:
@@ -76,7 +76,7 @@ class OpenSkyNetworkDataHandler:
 
 if __name__ == '__main__':
 
-    pub_app = AppFactory.create_publisher_app_from_config('config.yml')
+    app = create_publisher_app_from_config('config.yml')
 
     data_handler = OpenSkyNetworkDataHandler()
 
@@ -89,18 +89,22 @@ if __name__ == '__main__':
         'Madrid': 'LECU'
     }
 
-    arrivals_topic = Topic('arrivals', 5)
-    departures_topic = Topic('departures', 5)
+    arrivals_topic = TopicGroup('arrivals', 5)
+    departures_topic = TopicGroup('departures', 5)
 
     for airport, icao24 in airports.items():
-        arrivals_handler = partial(data_handler.arrivals_today_handler, icao24)
-        departures_handler = partial(data_handler.departures_today_handler, icao24)
+        arrivals_callback = partial(data_handler.arrivals_today_handler, icao24)
+        departures_callback = partial(data_handler.departures_today_handler, icao24)
 
-        arrivals_topic.add_route(key=f"arrivals.{airport.lower()}", handler=arrivals_handler)
-        departures_topic.add_route(key=f"departures.{airport.lower()}", handler=departures_handler)
+        arrivals_topic.create_topic(id=f"arrivals.{airport.lower()}", callback=arrivals_callback)
+        departures_topic.create_topic(id=f"departures.{airport.lower()}", callback=departures_callback)
 
-    publisher = pub_app.register_publisher('test', 'test')
+    publisher = app.register_publisher('test', 'test')
     publisher.register_topic(arrivals_topic)
     publisher.register_topic(departures_topic)
 
-    pub_app.run()
+    @app.before_run
+    def populate_publisher_topics():
+        publisher.populate_topics()
+
+    app.run()
