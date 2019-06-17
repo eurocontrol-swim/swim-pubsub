@@ -77,6 +77,12 @@ class BrokerHandler(MessagingHandler):
         self.started = True
         _logger.info(f'Connected to broker @ {self.host}')
 
+    def _create_sender(self, endpoint: str) -> proton.Sender:
+        return self.container.create_sender(self.conn, endpoint)
+
+    def _create_receiver(self, endpoint: str) -> proton.Receiver:
+        return self.container.create_receiver(self.conn, endpoint)
+
     @classmethod
     def create_from_config(cls, config: ConfigDict):
         """
@@ -157,6 +163,8 @@ class TopicGroup(MessagingHandler):
             if self.sender.credit:
                 self.sender.send(message)
                 _logger.info(f"Sent message: {message}")
+            else:
+                _logger.info(f"No credit to send message: {message}")
 
     def on_timer_task(self, event: proton.Event):
         """
@@ -220,7 +228,7 @@ class PublisherBrokerHandler(BrokerHandler):
         # call the parent event handler first to take care of connection
         super().on_start(event)
 
-        self.sender = self.container.create_sender(self.conn, self.endpoint)
+        self.sender = self._create_sender(self.endpoint)
 
         # assigns the sender on all available topic groups and schedules them
         for topic_group in self.topic_groups:
@@ -277,7 +285,8 @@ class SubscriberBrokerHandler(BrokerHandler):
         :param callback: a callable that should accept a parameter `data` in order to process the incoming data from the
                          queue.
         """
-        receiver = self.container.create_receiver(self.conn, queue)
+        receiver = self._create_receiver(queue)
+
         self.receivers[receiver] = (queue, callback)
 
         _logger.debug(f"Created receiver {receiver}")

@@ -27,9 +27,9 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-from typing import Dict, Union
+from typing import Dict, Union, List
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-ConfigDict = Dict[str, Union[str, int, bool]]
+ConfigDict = Dict[str, Union[str, int, bool, Dict, List]]
