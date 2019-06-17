@@ -38,7 +38,6 @@ def handler(body, topic):
 
     with open(f'/home/alex/data/{topic}', 'a') as f:
         f.write(f'{topic}: {body["data"]}\n')
-        f.write(f'Received batch #{body["batch"]}\n\n')
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))

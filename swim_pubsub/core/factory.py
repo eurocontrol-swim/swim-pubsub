@@ -28,28 +28,46 @@ http://opensource.org/licenses/BSD-3-Clause
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
 import logging
+from typing import Type
 
 from swim_pubsub.core.base import App
-from swim_pubsub.core.handlers import PublisherBrokerHandler, SubscriberBrokerHandler
+from swim_pubsub.core.handlers import PublisherBrokerHandler, SubscriberBrokerHandler, BrokerHandler
 from swim_pubsub.core.utils import yaml_file_to_dict
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-def create_app_from_config(config_file, broker_handler_class):
+def create_app_from_config(config_file: str, broker_handler_class: Type[BrokerHandler]) -> App:
+    """
+    Entry point for creating an App()
+    First it parses the config file and then initializes accordingly the BrokerHandler.
+    :param config_file: the path of the config file
+    :param broker_handler_class:
+    """
     config = yaml_file_to_dict(config_file)
     handler = broker_handler_class.create_from_config(config['BROKER'])
     app = App(handler)
     app.config = config
 
+    # configure logging
     logging.config.dictConfig(app.config['LOGGING'])
 
     return app
 
 
-def create_publisher_app_from_config(config_file):
+def create_publisher_app_from_config(config_file: str):
+    """
+    Creates a publisher App by passing the PublisherBrokerHandler specifically.
+
+    :param config_file: the path of the config file
+    """
     return create_app_from_config(config_file, broker_handler_class=PublisherBrokerHandler)
 
 
-def create_subscriber_app_from_config(config_file):
+def create_subscriber_app_from_config(config_file: str):
+    """
+    Creates a subscriber App by passing the SubscriberBrokerHandler specifically.
+
+    :param config_file: the path of the config file
+    """
     return create_app_from_config(config_file, broker_handler_class=SubscriberBrokerHandler)

@@ -28,11 +28,14 @@ http://opensource.org/licenses/BSD-3-Clause
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
 import logging
+from typing import Dict, List, Callable
 
 from rest_client.errors import APIError
 from subscription_manager_client.subscription_manager import SubscriptionManagerClient
 
 from swim_pubsub.clients.utils import sms_error_handler
+from swim_pubsub.core import ConfigDict
+from swim_pubsub.core.handlers import BrokerHandler, PublisherBrokerHandler, TopicGroup, SubscriberBrokerHandler
 from swim_pubsub.services.subscription_manager import SubscriptionManagerService
 from swim_pubsub.clients.errors import ClientError
 
@@ -43,18 +46,45 @@ _logger = logging.getLogger(__name__)
 
 class Client:
 
-    def __init__(self, msg_handler, sm_service):
-        self.msg_handler = msg_handler
-        self.sm_service = sm_service
+    def __init__(self, broker_handler: BrokerHandler, sm_service: SubscriptionManagerService) -> None:
+        """
+        Represents an actual SubscriptionManager user (publisher or subscriber)
+
+        :param broker_handler: the BrokerHandler used by the app which is passed to every client using it.
+        :param sm_service: the service proxy which will be used to access the SubscriptionManager
+        """
+        self.broker_handler: BrokerHandler = broker_handler
+        self.sm_service: SubscriptionManagerService = sm_service
 
     @classmethod
-    def create(cls, msg_handler, sm_config, username, password):
-        sm_service = cls._create_sm_service(sm_config, username, password)
+    def create(cls,
+               broker_handler: BrokerHandler,
+               sm_config: ConfigDict,
+               username: str,
+               password: str):
+        """
+        Helper factory constructor
+        :param broker_handler:
+        :param sm_config:
+        :param username: the actual SubscriptionManager username of the client
+        :param password: the actual SubscriptionManager password of the client
+        :return: Client
+        """
+        sm_client = cls._create_sm_client(sm_config, username, password)
 
-        return cls(msg_handler, sm_service)
+        sm_service =  SubscriptionManagerService(sm_client)
 
-    @classmethod
-    def _create_sm_service(cls, config, username, password):
+        return cls(broker_handler, sm_service)
+
+    @staticmethod
+    def _create_sm_client(config: ConfigDict, username: str, password: str) -> SubscriptionManagerClient:
+        """
+        Create a SubscriptionManagerClient but first make a check whether the given credentials a valid.
+        :param config:
+        :param username:
+        :param password:
+        :return:
+        """
         sm_client: SubscriptionManagerClient = SubscriptionManagerClient.create(
             host=config['host'],
             https=config['https'],
@@ -63,90 +93,132 @@ class Client:
             password=password
         )
 
-        if not cls._is_valid_user(sm_client):
-            raise ClientError('Invalid user credentials')
-
-        return SubscriptionManagerService(sm_client)
-
-    @staticmethod
-    def _is_valid_user(sm_client):
         try:
             sm_client.ping_credentials()
         except APIError as e:
             if e.status_code == 401:
-                return False
-            else:
-                raise
+                raise ClientError('Invalid user credentials')
+            raise
 
-        return True
+        return sm_client
 
 
 class Publisher(Client):
 
-    def __init__(self, msg_handler, sm_service):
-        Client.__init__(self, msg_handler, sm_service)
-        self.topics_dict = {}
+    def __init__(self, broker_handler: PublisherBrokerHandler, sm_service: SubscriptionManagerService):
+        """
+        Implementation of an actual SubscriptionManager user who acts as a publisher. The broker_handler should be a
+        `PublisherBrokerHandler` or a derivative.
+
+        :param broker_handler:
+        :param sm_service:
+        """
+        self.broker_handler: PublisherBrokerHandler = broker_handler  # for type hint
+
+        Client.__init__(self, broker_handler, sm_service)
+
+        self.topic_groups_dict: Dict[str, TopicGroup] = {}
 
     @property
-    def topics(self):
-        return list(self.topics_dict.values())
+    def topic_groups(self):
+        return list(self.topic_groups_dict.values())
 
-    def register_topic(self, topic):
-        if topic.name in self.topics_dict:
-            raise Exception('topic already exists')
+    def register_topic_group(self, topic_group: TopicGroup):
+        """
+        Adds the topic group in the local dictionary and in the handler's list
+        """
+        if topic_group.name in self.topic_groups:
+            raise ClientError(f'TopicGroup {topic_group.name} already exists')
 
-        self.topics_dict[topic.name] = topic
-        self.msg_handler.add_topic(topic)
+        self.topic_groups_dict[topic_group.name] = topic_group
+
+        self.broker_handler.add_topic_group(topic_group)
 
     def populate_topics(self):
-        topics_to_populate = [key for topic in self.topics for key in topic.topic_ids]
+        """
+        Registers the topics of each group to the SubscriptionManager. It can be used before starting the corresponding
+        app.
+        """
+        topics_to_populate = [id for topic_group in self.topic_groups for id in topic_group.topic_ids]
 
         for topic in topics_to_populate:
             try:
-                self.sm_service.create_topic(topic, )
+                self.sm_service.create_topic(topic)
             except APIError as e:
-                _logger.info(f"{topic}: {str(e)}")
+                _logger.info(f"Error while registering {topic}: {str(e)}")
 
 
 class Subscriber(Client):
 
-    def __init__(self, msg_handler, sm_service):
-        Client.__init__(self, msg_handler, sm_service)
-        self.subscriptions = {}
+    def __init__(self, broker_handler: SubscriberBrokerHandler, sm_service: SubscriptionManagerService):
+        """
+        Implementation of an actual SubscriptionManager user who acts as a publisher. The broker_handler should be a
+        `SubscriberBrokerHandler` or a derivative.
+
+        :param broker_handler:
+        :param sm_service:
+        """
+        self.broker_handler: SubscriberBrokerHandler = broker_handler  # for type hint
+
+        Client.__init__(self, broker_handler, sm_service)
+
+        self.subscriptions: Dict[str, str] = {}
 
     @sms_error_handler
-    def get_topics(self):
+    def get_topics(self) -> List[str]:
+        """
+        Retrieves all the topic names from the SubscriptionManager
+        """
         return self.sm_service.get_topics()
 
     @sms_error_handler
-    def subscribe(self, topic_name, data_handler):
-        queue = self.sm_service.subscribe(topic_name)
-        _logger.info("Subscribed in SM")
+    def subscribe(self, topic_name: str, callback: Callable):
+        """
+        Subscribes the subscriber to the given topic name in the SubscriptionManager. The SubscriptionManager will
+        crate a new unique queue which will be used to reveive data from the given topic. The callback will be called
+        upon receiving any data from the queue.
 
-        self.msg_handler.create_receiver(queue, data_handler)
-        _logger.info('Created receiver')
+        :param topic_name:
+        :param callback:
+        """
+        queue = self.sm_service.subscribe(topic_name)
+        _logger.info(f"Subscribed in SM and got unique queue: {queue}")
+
+        self.broker_handler.create_receiver(queue, callback)
 
         self.subscriptions[topic_name] = queue
 
     @sms_error_handler
-    def unsubscribe(self, topic_name):
+    def unsubscribe(self, topic_name: str):
+        """
+        Unsubscribes the subscriber from the given topic by removing the corresponding receiver from the handler and by
+        deleting the corresponding subscription from the SubscriptionManager
+        :param topic_name:
+        """
         queue = self.subscriptions[topic_name]
 
-        self.msg_handler.remove_receiver(queue)
-        _logger.info('Removed receiver')
+        self.broker_handler.remove_receiver(queue)
 
         self.sm_service.unsubscribe(queue)
         _logger.info("Deleted subscription from SM")
 
     @sms_error_handler
-    def pause(self, topic_name):
+    def pause(self, topic_name: str):
+        """
+        Pauses the subscription of the given topic by pausing the corresponding subscription in the SubscriptionManager
+        :param topic_name:
+        """
         queue = self.subscriptions[topic_name]
 
         self.sm_service.pause(queue)
         _logger.info("Paused subscription in SM")
 
     @sms_error_handler
-    def resume(self, topic_name):
+    def resume(self, topic_name: str):
+        """
+        Resumes the subscription of the given topic by resuming the corresponding subscription in the SubscriptionManager
+        :param topic_name:
+        """
         queue = self.subscriptions[topic_name]
 
         self.sm_service.resume(queue)

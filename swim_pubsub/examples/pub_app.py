@@ -100,8 +100,8 @@ if __name__ == '__main__':
         departures_topic.create_topic(id=f"departures.{airport.lower()}", callback=departures_callback)
 
     publisher = app.register_publisher('test', 'test')
-    publisher.register_topic(arrivals_topic)
-    publisher.register_topic(departures_topic)
+    publisher.register_topic_group(arrivals_topic)
+    publisher.register_topic_group(departures_topic)
 
     @app.before_run
     def populate_publisher_topics():

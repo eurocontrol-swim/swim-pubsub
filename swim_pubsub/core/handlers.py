@@ -29,13 +29,13 @@ http://opensource.org/licenses/BSD-3-Clause
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
 
-from __future__ import annotations
 import logging
 from typing import Dict, Callable, Optional, Tuple, List, Any
 
 import proton
 from proton._handlers import MessagingHandler
 
+from swim_pubsub.core import ConfigDict
 from swim_pubsub.core.errors import BrokerHandlerError
 from swim_pubsub.core.utils import get_ssl_domain
 
@@ -61,7 +61,7 @@ class BrokerHandler(MessagingHandler):
 
     @property
     def host(self) -> str:
-        protocol = "amqps" if self.ssl_domain else "amqps"
+        protocol = "amqps" if self.ssl_domain else "amqp"
 
         return f"{protocol}://{self._host}"
 
@@ -78,11 +78,12 @@ class BrokerHandler(MessagingHandler):
         _logger.info(f'Connected to broker @ {self.host}')
 
     @classmethod
-    def create_from_config(cls, config: Dict[str, str]) -> BrokerHandler:
+    def create_from_config(cls, config: ConfigDict):
         """
         Factory method for creating an instance from config values
 
         :param config:
+        :return: BrokerHandler
         """
         ssl_domain = get_ssl_domain(
             certificate_db=config['cert_db'],
@@ -98,12 +99,12 @@ class TopicGroup(MessagingHandler):
     def __init__(self, name: str, interval_in_sec: int, callback: Optional[Callable] = None) -> None:
         """
         A topic group keeps track of similar (in terms of produced data) topics and inherits from
-        `proton.MessagingHandler` in order to take advantage of its scheduling functionality. It coordinates all its
-        topics by running their callbacks based on the given interval period.
+        `proton.MessagingHandler` in order to take advantage of its event scheduling functionality. It coordinates all
+        its topics by running their callbacks based on the given interval period.
 
         :param name: the name of the group
         :param interval_in_sec: how often should the data of its topics produced and dispached.
-        :param callback: optional callback that serves as data processor that can be used by all the topics.
+        :param callback: optional callback that serves as data pre-processor which could be used later by all the topics.
         """
         MessagingHandler.__init__(self)
 
@@ -159,8 +160,8 @@ class TopicGroup(MessagingHandler):
 
     def on_timer_task(self, event: proton.Event):
         """
-        Is triggered upon a scheduled event. Dispatching is already scheduled upon initialization of the group and is
-        being rescheduled.
+        Is triggered upon a scheduled action. In this case the scheduled action is `dispatch`. Dispatching has already
+        been scheduled upon initialization of the group and is now being rescheduled.
 
         :param event:
         """
@@ -183,7 +184,8 @@ class Topic:
 
     def generate_message(self, group_data: Optional[Any] = None):
         """
-        Generates the topic data by running the assigned callback.
+        Generates the topic data by running the assigned callback. The body of the message will be {'data': data} and
+        the type of data depends on the return value of the callback.
 
         :param group_data: optional data that could be coming from the TopicGroup
         """
@@ -198,7 +200,7 @@ class PublisherBrokerHandler(BrokerHandler):
 
     def __init__(self, host: str, ssl_domain: Optional[proton.SSLDomain] = None) -> None:
         """
-        An implementation of a broker client that is supposed to act as a publisher. It keeps a list of `Topic`
+        An implementation of a broker client that is supposed to act as a publisher. It keeps a list of `TopicGroup`
         instances and creates a single `proton.Sender` which assigns to each of them.
 
         :param host: host of the broker
@@ -206,7 +208,7 @@ class PublisherBrokerHandler(BrokerHandler):
         """
         BrokerHandler.__init__(self, host, ssl_domain)
 
-        self.topics = []
+        self.topic_groups = []
         self.endpoint = '/exchange/amq.topic'
 
     def on_start(self, event: proton.Event) -> None:
@@ -215,26 +217,31 @@ class PublisherBrokerHandler(BrokerHandler):
 
         :param event:
         """
+        # call the parent event handler first to take care of connection
         super().on_start(event)
 
         self.sender = self.container.create_sender(self.conn, self.endpoint)
 
-        # schedules all the available topics
-        for topic in self.topics:
-            self._schedule_topic(topic)
+        # assigns the sender on all available topic groups and schedules them
+        for topic_group in self.topic_groups:
+            topic_group.sender = self.sender
+            self._schedule_topic_group(topic_group)
 
-    def add_topic(self, topic: TopicGroup) -> None:
+    def add_topic_group(self, topic: TopicGroup) -> None:
         """
         :param topic:
         """
-        self.topics.append(topic)
+        if self.started:
+            _logger.info("Cannot add new topic group while running.")
 
-    def _schedule_topic(self, topic: TopicGroup) -> None:
+        self.topic_groups.append(topic)
+
+    def _schedule_topic_group(self, topic_group: TopicGroup) -> None:
         """
-        :param topic:
+        :param topic_group:
         """
-        topic.sender = self.sender
-        self.container.schedule(topic.interval_in_sec, topic)
+
+        self.container.schedule(topic_group.interval_in_sec, topic_group)
 
 
 class SubscriberBrokerHandler(BrokerHandler):
@@ -273,8 +280,8 @@ class SubscriberBrokerHandler(BrokerHandler):
         receiver = self.container.create_receiver(self.conn, queue)
         self.receivers[receiver] = (queue, callback)
 
-        _logger.info(f"Created receiver {receiver}")
-        _logger.info(f'Start receiving on: {queue}')
+        _logger.debug(f"Created receiver {receiver}")
+        _logger.debug(f'Start receiving on: {queue}')
 
         return receiver
 
@@ -288,7 +295,7 @@ class SubscriberBrokerHandler(BrokerHandler):
 
         # close the receiver
         receiver.close()
-        _logger.info(f"Closed receiver {receiver} on queue {queue}")
+        _logger.debug(f"Closed receiver {receiver} on queue {queue}")
 
         # remove it from the list
         del self.receivers[receiver]

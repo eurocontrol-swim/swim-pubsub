@@ -16,7 +16,7 @@ LOGGING:
   disable_existing_loggers: false
 
   root:
-    level: INFO
+    level: DEBUG
     handlers: [console]
 
   loggers:
