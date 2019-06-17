@@ -6,7 +6,7 @@ which extends and can be used to create standalone applications behaving as publ
 
 ## [Prerequisites](#prerequisites)
 
-### [Subscription Manager](#subscription-manager)
+### <a href="#subscription-manager">Subscription Manager</a>
 A Subscription Manager keeps track (in DB) of the available topics from publishers and manages the subscriptions of the
 subscribers. Moreover, it works closely with a broker (currently tested with [RabbitMQ](https://www.rabbitmq.com/))
 where it coordinates the flow of the data from the topics to dedicated queues per subscription based on its DB data. The
@@ -15,39 +15,39 @@ currently used implementation is
 [https://bitbucket.org/antavelos-eurocontrol/subscription-manager/src](https://bitbucket.org/antavelos-eurocontrol/subscription-manager/src)
 
 
-## [Base classes and concepts](#base-classes-and-concepts)
+## <a href="#base-classes-and-concepts">Base classes and concepts</a>
 
-### [App](#app)
+### <a href="#app">App</a>
 An `swim_pubsub.core.base.App` instance wraps up the functionality of a `proton.Container`. It keeps track of `Client`
 instances which can behave as producers, subscribers or both (depending on the their implementation) by interacting
 with the Subscription Manager.
 
-### [BrokerHandler](#broker-handler)
+### <a href="#broker-handler">BrokerHandler</a>
 A `swim_pubsub.core.handlers.BrokerHandler` wraps up the functionality of `proton._handlers.MessagingHandler` which is
 basically the event handler mechanism behind [qpid-proton](https://github.com/apache/qpid-proton/tree/master/python) and
 can be extended with more specific publisher or subscriber actions.
 
-### [Client](#client)
-A `swim_pubsum.clients.clients.Client` instance represents a user of an <a href="#app">App</a> (publisher, subscriber or both) which
-interacts with the broker by sending and receiving data from it as well as the [Subscription Manager]() for managing
-their topics ans subscriptions.
+### <a href="#client">Client</a>
+A `swim_pubsum.clients.clients.Client` instance represents a user of an [App](#app) (publisher, subscriber or both) 
+which interacts with the broker by sending and receiving data from it as well as the
+[Subscription Manager](#subscription-manager) for managing their topics ans subscriptions.
 
-### [Publisher](#publisher)
-A `swim_pubsum.clients.clients.Publisher` inherits from <a href="#client">Client</a> by adding extra functionality e.g. for keeping track
-of its topics
+### <a href="#publisher">Publisher</a>
+A `swim_pubsum.clients.clients.Publisher` inherits from [Client](#client) by adding extra functionality e.g. for keeping
+track of its topics.
 
-### [Subscriber](#subscriber)
-A `swim_pubsum.clients.clients.Subscriber` inherits from <a href="#client">Client</a> by adding extra functionality e.g. for keeping track
-of its subscriptions
+### <a href="#subscriber">Subscriber</a>
+A `swim_pubsum.clients.clients.Subscriber` inherits from [Client](#client) by adding extra functionality e.g. for 
+keeping track of its subscriptions.
 
-### [TopicGroup](#topic-group)
-A `swim_pubsub.handlers.TopicGroup` groups instances of <a href="#topic">Topic</a>. It represents a generic type of messaging data that
-can be split into sub types (subtopics) and routed in the broker.
+###  <a href="#topic-group">TopicGroup</a>
+A `swim_pubsub.handlers.TopicGroup` groups instances of [Topic](#topic). It represents a generic type of messaging data
+that can be split into sub types (subtopics) and routed in the broker.
 
-### [Topic](#topioc)
-A `swim_pubsub.handlers.Topic` represents a sub type of a <a href="#topic-group">TopicGroup</a> that takes care of routing its data in the
-broker which eventually will be consumed from a dedicated subscriber via a dedicated queue.
+### <a href="#topic">Topic</a>
+A `swim_pubsub.handlers.Topic` represents a sub type of a [TopicGroup](#topic-group) that takes care of routing its
+data in the broker which eventually will be consumed from a dedicated subscriber via a dedicated queue.
 
-### [SubscriptionManagerService](#subscription-manager-service)
-A `swim_pubsub.services.SubscriptionManagerService` wraps up the functionality of a <a href="#subscription-manager">Subscription</a> and is used
-by a <a href="#client">Client</a> in order to access it.
+### <a href="#subscription-manager-service">SubscriptionManagerService</a>
+A `swim_pubsub.services.SubscriptionManagerService` wraps up the functionality of a
+[Subscription Manager](#subscription-manager) and is used by a [Client](#client) in order to access it.
