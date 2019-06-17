@@ -27,54 +27,47 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
+import logging
+from typing import Type
 
-from swim_pubsub.core.utils import yaml_file_to_dict, get_ssl_domain
-from swim_pubsub.core.handlers import PublisherHandler, SubscriberHandler
-from swim_pubsub.core.base import PublisherApp, SubscriberApp
-from swim_pubsub.services.subscription_manager import SubscriptionManagerConfig
+from swim_pubsub.core.base import App
+from swim_pubsub.core.handlers import PublisherBrokerHandler, SubscriberBrokerHandler, BrokerHandler
+from swim_pubsub.core.utils import yaml_file_to_dict
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-class AppFactory:
+def create_app_from_config(config_file: str, broker_handler_class: Type[BrokerHandler]) -> App:
+    """
+    Entry point for creating an App()
+    First it parses the config file and then initializes accordingly the BrokerHandler.
+    :param config_file: the path of the config file
+    :param broker_handler_class:
+    """
+    config = yaml_file_to_dict(config_file)
+    handler = broker_handler_class.create_from_config(config['BROKER'])
+    app = App(handler)
+    app.config = config
 
-    @classmethod
-    def create_publisher_app_from_config(cls, config_file):
-        return cls._create_app_from_config(config_file, PublisherHandler, PublisherApp)
+    # configure logging
+    logging.config.dictConfig(app.config['LOGGING'])
 
-    @classmethod
-    def create_subscriber_app_from_config(cls, config_file):
-        return cls._create_app_from_config(config_file, SubscriberHandler, SubscriberApp)
+    return app
 
-    @classmethod
-    def _create_app_from_config(cls, config_file, msg_handler_class, app_class):
-        config = yaml_file_to_dict(config_file)
 
-        msg_handler = cls._create_msg_handler_from_config(config['BROKER'], msg_handler_class)
+def create_publisher_app_from_config(config_file: str):
+    """
+    Creates a publisher App by passing the PublisherBrokerHandler specifically.
 
-        sm_config = cls._create_sm_config_from_config(config['SUBSCRIPTION-MANAGER'])
+    :param config_file: the path of the config file
+    """
+    return create_app_from_config(config_file, broker_handler_class=PublisherBrokerHandler)
 
-        return app_class(msg_handler, sm_config)
 
-    @classmethod
-    def _create_sm_config_from_config(cls, config):
-        sm_config = SubscriptionManagerConfig(
-            host=config['host'],
-            https=config['https'],
-            timeout=config['timeout'],
-        )
+def create_subscriber_app_from_config(config_file: str):
+    """
+    Creates a subscriber App by passing the SubscriberBrokerHandler specifically.
 
-        return sm_config
-
-    @classmethod
-    def _create_msg_handler_from_config(cls, config, msg_handler_class):
-        ssl_domain = get_ssl_domain(
-            certificate_db=config['cert_db'],
-            cert_file=config['cert_file'],
-            cert_key=config['cert_key'],
-            password=config['cert_password']
-        )
-        msg_handler = msg_handler_class(host=config['host'], ssl_domain=ssl_domain)
-
-        return msg_handler
-
+    :param config_file: the path of the config file
+    """
+    return create_app_from_config(config_file, broker_handler_class=SubscriberBrokerHandler)

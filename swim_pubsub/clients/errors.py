@@ -31,5 +31,5 @@ Details on EUROCONTROL: http://www.eurocontrol.int
 __author__ = "EUROCONTROL (SWIM)"
 
 
-class UserError(Exception):
+class ClientError(Exception):
     pass

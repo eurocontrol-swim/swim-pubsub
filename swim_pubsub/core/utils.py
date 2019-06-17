@@ -30,10 +30,17 @@ Details on EUROCONTROL: http://www.eurocontrol.int
 import yaml
 from proton import SSLDomain
 
+from swim_pubsub.core import ConfigDict
+
 __author__ = "EUROCONTROL (SWIM)"
 
 
-def yaml_file_to_dict(filename):
+def yaml_file_to_dict(filename: str) -> ConfigDict:
+    """
+    Converts a yml file into a dict
+    :param filename:
+    :return:
+    """
     if not filename.endswith(".yml"):
         raise ValueError("YAML config files should end with '.yml' extension (RTFMG).")
 
@@ -43,7 +50,15 @@ def yaml_file_to_dict(filename):
     return obj or None
 
 
-def get_ssl_domain(certificate_db, cert_file, cert_key, password):
+def get_ssl_domain(certificate_db: str, cert_file: str, cert_key: str, password: str) -> SSLDomain:
+    """
+    Creates an SSLDomain to be passed upon connecting to the broker
+    :param certificate_db: path to certificate DB
+    :param cert_file: path to client certificate
+    :param cert_key: path to client key
+    :param password: password of the client
+    :return:
+    """
     ssl_domain = SSLDomain(SSLDomain.VERIFY_PEER)
 
     ssl_domain.set_trusted_ca_db(certificate_db)

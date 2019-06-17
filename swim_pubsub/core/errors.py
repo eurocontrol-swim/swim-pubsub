@@ -27,46 +27,13 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-from rest_client.errors import APIError
-from subscription_manager_client.subscription_manager import SubscriptionManagerClient
-
-from swim_pubsub.services.subscription_manager import SubscriptionManagerService
-from swim_pubsub.users.errors import UserError
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-class UserFactory:
+class AppError(Exception):
+    pass
 
-    @classmethod
-    def create(cls, msg_handler, sm_config, username, password):
-        sm_service = cls._create_sm_service(sm_config, username, password)
 
-        return cls(msg_handler, sm_service)
-
-    @classmethod
-    def _create_sm_service(cls, sm_config, username, password):
-        client: SubscriptionManagerClient = SubscriptionManagerClient.create(
-            host=sm_config.host,
-            https=sm_config.https,
-            timeout=sm_config.timeout,
-            username=username,
-            password=password
-        )
-
-        if not cls._is_valid_user(client):
-            raise UserError('Invalid user credentials')
-
-        return SubscriptionManagerService(client)
-
-    @staticmethod
-    def _is_valid_user(client):
-        try:
-            client.ping_credentials()
-        except APIError as e:
-            if e.status_code == 401:
-                return False
-            else:
-                raise
-
-        return True
+class BrokerHandlerError(Exception):
+    pass

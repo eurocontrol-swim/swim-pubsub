@@ -27,6 +27,8 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
+import logging
+from typing import List
 
 from rest_client.errors import APIError
 from subscription_manager_client.models import Topic, Subscription
@@ -35,63 +37,73 @@ from subscription_manager_client.subscription_manager import SubscriptionManager
 __author__ = "EUROCONTROL (SWIM)"
 
 
+_logger = logging.getLogger(__name__)
+
+
 class SubscriptionManagerServiceError(Exception):
     pass
 
 
-class SubscriptionManagerConfig:
-
-    def __init__(self, host, https, timeout=30):
-        self.host = host
-        self.https = https
-        self.timeout = timeout
-
-
 class SubscriptionManagerService:
 
-    def __init__(self, client: SubscriptionManagerClient):
+    def __init__(self, client: SubscriptionManagerClient) -> None:
+        """
+        Wraps the basic functionalities of the SubscriptionManager
+        """
         self.client: SubscriptionManagerClient = client
 
-    def get_topics(self):
+    def get_topics(self) -> List[str]:
+        """
+        Retrieves all the available topic names
+        :return:
+        """
         db_topics = self.client.get_topics()
 
         result = [topic.name for topic in db_topics]
 
         return result
 
-    def create_topics(self, topic_names):
+    def create_topics(self, topic_names: List[str]):
+        """
+        Creates new records for each one of the given topics in the Subscription Manager
+        """
         for topic_name in topic_names:
             self.create_topic(topic_name)
 
-    def create_topic(self, topic_name):
+    def create_topic(self, topic_name: str):
+        """
+        Creates a new record for the given topic in the Subscription Manager
+        """
         topic = Topic(name=topic_name)
 
         self.client.post_topic(topic)
 
-    def sync_topics(self, topic_names):
+    def sync_topics(self, topic_names: List[str]):
+        """
+        Synchronizes the Subscription Manager with the given topic names. New names will create new topic records and
+        missing names will be deleted.
+        """
         db_topics = self.client.get_topics()
 
         db_topic_names = [topic.name for topic in db_topics]
 
         topic_names_to_create = set(topic_names) - set(db_topic_names)
         topic_names_to_delete = set(db_topic_names) - set(topic_names)
-        db_topics_to_delete = [topic for topic in db_topics if topic.name in topic_names_to_delete]
 
         for topic_name in topic_names_to_create:
             self.create_topic(topic_name)
 
-        for db_topic in db_topics_to_delete:
-            self.client.delete_topic_by_id(db_topic.id)
+        db_topic_ids_to_delete = [topic.id for topic in db_topics if topic.name in topic_names_to_delete]
 
-    def _get_subscription_by_queue(self, queue):
-        subscriptions = self.client.get_subscriptions(queue=queue)
+        for topic_id in db_topic_ids_to_delete:
+            self.client.delete_topic_by_id(topic_id)
 
-        if not subscriptions:
-            raise SubscriptionManagerServiceError(f"No subscription found for queue '{queue}'")
+    def subscribe(self, topic_name: str) -> str:
+        """
+        Subscribes the client to the given topic.
 
-        return subscriptions[0]
-
-    def subscribe(self, topic_name):
+        :return: A unique queue corresponding to this subscription
+        """
         db_topics = self.client.get_topics()
 
         try:
@@ -110,7 +122,10 @@ class SubscriptionManagerService:
 
         return db_subscription.queue
 
-    def unsubscribe(self, queue):
+    def unsubscribe(self, queue: str):
+        """
+        Unsubscribes the client from the topic that corresponds to the given queue
+        """
         subscription = self._get_subscription_by_queue(queue)
 
         try:
@@ -118,7 +133,11 @@ class SubscriptionManagerService:
         except APIError as e:
             raise SubscriptionManagerServiceError(f"Error while deleting subscription '{subscription.id}': {str(e)}")
 
-    def pause(self, queue):
+    def pause(self, queue: str):
+        """
+        Deactivates the subscription that corresponds to the given queue
+        :param queue:
+        """
         subscription = self._get_subscription_by_queue(queue)
 
         subscription.active = False
@@ -128,7 +147,10 @@ class SubscriptionManagerService:
         except APIError as e:
             raise SubscriptionManagerServiceError(f"Error while updating subscription '{subscription.id}': {str(e)}")
 
-    def resume(self, queue):
+    def resume(self, queue: str):
+        """
+        Reactivates the subscription that corresponds to the given queue
+        """
         subscription = self._get_subscription_by_queue(queue)
 
         subscription.active = True
@@ -138,3 +160,13 @@ class SubscriptionManagerService:
         except APIError as e:
             raise SubscriptionManagerServiceError(f"Error while updating subscription '{subscription.id}': {str(e)}")
 
+    def _get_subscription_by_queue(self, queue: str) -> Subscription:
+        """
+        Retrieves a `subscription_manager_client.models.Subscription` by its queue
+        """
+        subscriptions = self.client.get_subscriptions(queue=queue)
+
+        if not subscriptions:
+            raise SubscriptionManagerServiceError(f"No subscription found for queue '{queue}'")
+
+        return subscriptions[0]

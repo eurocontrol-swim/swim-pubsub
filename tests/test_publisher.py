@@ -27,5 +27,40 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
+from functools import partial
 
 __author__ = "EUROCONTROL (SWIM)"
+
+
+class Test:
+    def __init__(self, a):
+        self.a = a
+        self.pre = []
+
+    def run(self):
+        for p in self.pre:
+            p()
+
+        print(self.a)
+
+    def dec(self, f):
+        # def wrapper(*args, **kwargs):
+        p = partial(f)
+        self.pre.append(p)
+
+        # return wrapper
+
+t = Test(1)
+
+@t.dec
+def p():
+    print('alex\n')
+
+
+def test_app():
+    t.run()
+
+#     config = Config.create_from_file('config.yml')
+#     handler = PublisherHandler.create_from_config(config.broker)
+#     app = App(handler)
+#     app.config = config
