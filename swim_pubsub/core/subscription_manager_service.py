@@ -34,14 +34,12 @@ from rest_client.errors import APIError
 from subscription_manager_client.models import Topic, Subscription
 from subscription_manager_client.subscription_manager import SubscriptionManagerClient
 
+from swim_pubsub.core.errors import SubscriptionManagerServiceError
+
 __author__ = "EUROCONTROL (SWIM)"
 
 
 _logger = logging.getLogger(__name__)
-
-
-class SubscriptionManagerServiceError(Exception):
-    pass
 
 
 class SubscriptionManagerService:

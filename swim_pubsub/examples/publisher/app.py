@@ -33,8 +33,8 @@ from functools import partial
 from opensky_network_client.opensky_network import OpenskyNetworkClient
 from rest_client.errors import APIError
 
-from swim_pubsub.core.factory import create_publisher_app_from_config
-from swim_pubsub.core.handlers import TopicGroup
+from swim_pubsub.core.topics import TopicGroup
+from swim_pubsub.publisher import PubApp
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -51,7 +51,7 @@ class OpenSkyNetworkDataHandler:
     def __init__(self):
         self.client = OpenskyNetworkClient.create('opensky-network.org')
 
-    def arrivals_today_handler(self, icao24, group_data=None):
+    def arrivals_today_handler(self, icao24, topic_group_data=None):
         begin, end = _today()
 
         try:
@@ -62,7 +62,7 @@ class OpenSkyNetworkDataHandler:
         return "\n".join(f'{arr["icao24"]} arrived from {arr["estDepartureAirport"]} to {arr["estArrivalAirport"]}'
                          for arr in result)
 
-    def departures_today_handler(self, icao24, group_data=None):
+    def departures_today_handler(self, icao24, topic_group_data=None):
         begin, end = _today()
 
         try:
@@ -76,7 +76,7 @@ class OpenSkyNetworkDataHandler:
 
 if __name__ == '__main__':
 
-    app = create_publisher_app_from_config('config.yml')
+    app = PubApp.create_from_config('config.yml')
 
     data_handler = OpenSkyNetworkDataHandler()
 

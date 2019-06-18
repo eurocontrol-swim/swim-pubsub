@@ -27,31 +27,21 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-import os
-
-from swim_pubsub.core.factory import create_subscriber_app_from_config
+from swim_pubsub.core.base import App
+from swim_pubsub.publisher.client import Publisher
+from swim_pubsub.publisher.handler import PublisherBrokerHandler
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-def handler(body, topic):
+class PubApp(App):
 
-    with open(f'/home/alex/data/{topic}', 'a') as f:
-        f.write(f'{topic}: {body["data"]}\n')
+    def register_publisher(self, username: str, password: str) -> Publisher:
+        """
+        Creates a Publisher client
+        """
+        return self.register_client(username, password, client_class=Publisher)
 
-
-current_dir = os.path.dirname(os.path.realpath(__file__))
-sub_app = create_subscriber_app_from_config(os.path.join(current_dir, 'config.yml'))
-
-sub_app.run(threaded=True)
-
-subscriber = sub_app.register_subscriber('test', 'test')
-
-
-# basic functions of the core
-#
-# >>> from functools import partial
-# >>> subscriber.subscribe('arrivals.paris', partial(handler, topic='arrivals.paris'))
-# >>> subscriber.pause('arrivals.paris')
-# >>> subscriber.resume('arrivals.paris')
-# >>> subscriber.unsubscribe('arrivals.paris')
+    @classmethod
+    def create_from_config(cls, config_file: str, broker_handler_class=PublisherBrokerHandler):
+        return cls._create_from_config(config_file, broker_handler_class)

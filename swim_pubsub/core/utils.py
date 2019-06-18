@@ -27,12 +27,20 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
+import logging
+from functools import wraps
+from typing import Callable
+
 import yaml
 from proton import SSLDomain
 
 from swim_pubsub.core import ConfigDict
+from swim_pubsub.core.errors import SubscriptionManagerServiceError
 
 __author__ = "EUROCONTROL (SWIM)"
+
+
+_logger = logging.getLogger(__name__)
 
 
 def yaml_file_to_dict(filename: str) -> ConfigDict:
@@ -65,3 +73,20 @@ def get_ssl_domain(certificate_db: str, cert_file: str, cert_key: str, password:
     ssl_domain.set_credentials(cert_file, cert_key, password)
 
     return ssl_domain
+
+
+def sms_error_handler(f: Callable) -> Callable:
+    """
+    Handles SubscriptionManagerServiceError cases by logging the error before raising
+    :param f:
+    :return:
+    """
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except SubscriptionManagerServiceError as e:
+            message = f"Error while accessing Subscription Manager: {str(e)}"
+            _logger.error(message)
+            raise e
+    return wrapper

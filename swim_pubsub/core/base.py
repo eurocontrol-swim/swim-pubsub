@@ -27,15 +27,17 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
+import logging
 import threading
 from typing import Optional, List, Callable, Type
 
 from proton._reactor import Container
 
-from swim_pubsub.clients.clients import Publisher, Subscriber, Client
+from swim_pubsub.core.clients import Client
+from swim_pubsub.core.utils import yaml_file_to_dict
 from swim_pubsub.core import ConfigDict
 from swim_pubsub.core.errors import AppError
-from swim_pubsub.core.handlers import BrokerHandler
+from swim_pubsub.core.broker_handlers import BrokerHandler
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -144,14 +146,26 @@ class App(_ProtonContainer):
 
         return client
 
-    def register_publisher(self, username: str, password: str) -> Publisher:
-        """
-        Creates a Publisher client
-        """
-        return self.register_client(username, password, client_class=Publisher)
+    def remove_client(self, client: Client):
+        try:
+            self.clients.remove(client)
+        except ValueError:
+            raise AppError(f"Client {client} was not found")
 
-    def register_subscriber(self, username: str, password: str) -> Subscriber:
+    @classmethod
+    def _create_from_config(cls, config_file: str, broker_handler_class: Type[BrokerHandler]):
         """
-        Creates a Subscriber client
+        Entry point for creating an App()
+        First it parses the config file and then initializes accordingly the BrokerHandler.
+        :param config_file: the path of the config file
+        :param broker_handler_class:
         """
-        return self.register_client(username, password, client_class=Subscriber)
+        config = yaml_file_to_dict(config_file)
+        handler = broker_handler_class.create_from_config(config['BROKER'])
+        app = cls(handler)
+        app.config = config
+
+        # configure logging
+        logging.config.dictConfig(app.config['LOGGING'])
+
+        return app

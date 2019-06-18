@@ -27,9 +27,32 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
+import os
+
+from swim_pubsub.subscriber import SubApp
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-class ClientError(Exception):
-    pass
+def handler(body, topic):
+
+    with open(f'/home/alex/data/{topic}', 'a') as f:
+        f.write(f'{topic}: {body["data"]}\n')
+
+
+current_dir = os.path.dirname(os.path.realpath(__file__))
+config_file = os.path.join(current_dir, 'config.yml')
+app = SubApp.create_from_config(config_file)
+
+app.run(threaded=True)
+
+subscriber = app.register_subscriber('test', 'test')
+
+
+# basic functions of the core
+#
+# >>> from functools import partial
+# >>> subscriber.subscribe('arrivals.paris', callback=partial(handler, topic='arrivals.paris'))
+# >>> subscriber.pause('arrivals.paris')
+# >>> subscriber.resume('arrivals.paris')
+# >>> subscriber.unsubscribe('arrivals.paris')

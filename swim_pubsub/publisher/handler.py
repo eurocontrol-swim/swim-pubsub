@@ -28,46 +28,62 @@ http://opensource.org/licenses/BSD-3-Clause
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
 import logging
-from typing import Type
+from typing import Optional
 
-from swim_pubsub.core.base import App
-from swim_pubsub.core.handlers import PublisherBrokerHandler, SubscriberBrokerHandler, BrokerHandler
-from swim_pubsub.core.utils import yaml_file_to_dict
+import proton
+
+from swim_pubsub.core.broker_handlers import BrokerHandler
+from swim_pubsub.core.topics import TopicGroup
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-def create_app_from_config(config_file: str, broker_handler_class: Type[BrokerHandler]) -> App:
-    """
-    Entry point for creating an App()
-    First it parses the config file and then initializes accordingly the BrokerHandler.
-    :param config_file: the path of the config file
-    :param broker_handler_class:
-    """
-    config = yaml_file_to_dict(config_file)
-    handler = broker_handler_class.create_from_config(config['BROKER'])
-    app = App(handler)
-    app.config = config
-
-    # configure logging
-    logging.config.dictConfig(app.config['LOGGING'])
-
-    return app
+_logger = logging.getLogger(__name__)
 
 
-def create_publisher_app_from_config(config_file: str):
-    """
-    Creates a publisher App by passing the PublisherBrokerHandler specifically.
+class PublisherBrokerHandler(BrokerHandler):
 
-    :param config_file: the path of the config file
-    """
-    return create_app_from_config(config_file, broker_handler_class=PublisherBrokerHandler)
+    def __init__(self, host: str, ssl_domain: Optional[proton.SSLDomain] = None) -> None:
+        """
+        An implementation of a broker client that is supposed to act as a publisher. It keeps a list of `TopicGroup`
+        instances and creates a single `proton.Sender` which assigns to each of them.
 
+        :param host: host of the broker
+        :param ssl_domain: proton SSLDomain for accessing the broker via TSL (SSL)
+        """
+        BrokerHandler.__init__(self, host, ssl_domain)
 
-def create_subscriber_app_from_config(config_file: str):
-    """
-    Creates a subscriber App by passing the SubscriberBrokerHandler specifically.
+        self.topic_groups = []
+        self.endpoint = '/exchange/amq.topic'
 
-    :param config_file: the path of the config file
-    """
-    return create_app_from_config(config_file, broker_handler_class=SubscriberBrokerHandler)
+    def on_start(self, event: proton.Event) -> None:
+        """
+        Is triggered upon running the `proton.Container` that uses this handler.
+
+        :param event:
+        """
+        # call the parent event handler first to take care of connection
+        super().on_start(event)
+
+        self.sender = self._create_sender(self.endpoint)
+
+        # assigns the sender on all available topic groups and schedules them
+        for topic_group in self.topic_groups:
+            topic_group.sender = self.sender
+            self._schedule_topic_group(topic_group)
+
+    def add_topic_group(self, topic: TopicGroup) -> None:
+        """
+        :param topic:
+        """
+        if self.started:
+            _logger.info("Cannot add new topic group while running.")
+
+        self.topic_groups.append(topic)
+
+    def _schedule_topic_group(self, topic_group: TopicGroup) -> None:
+        """
+        :param topic_group:
+        """
+
+        self.container.schedule(topic_group.interval_in_sec, topic_group)

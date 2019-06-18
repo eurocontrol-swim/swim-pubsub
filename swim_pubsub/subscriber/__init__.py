@@ -27,21 +27,21 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
+from swim_pubsub.core.base import App
+from swim_pubsub.subscriber.client import Subscriber
+from swim_pubsub.subscriber.handler import SubscriberBrokerHandler
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-class AppError(Exception):
-    pass
+class SubApp(App):
 
+    def register_subscriber(self, username: str, password: str) -> Subscriber:
+        """
+        Creates a Subscriber client
+        """
+        return self.register_client(username, password, client_class=Subscriber)
 
-class BrokerHandlerError(Exception):
-    pass
-
-
-class ClientError(Exception):
-    pass
-
-
-class SubscriptionManagerServiceError(Exception):
-    pass
+    @classmethod
+    def create_from_config(cls, config_file: str, broker_handler_class=SubscriberBrokerHandler):
+        return cls._create_from_config(config_file, broker_handler_class)
