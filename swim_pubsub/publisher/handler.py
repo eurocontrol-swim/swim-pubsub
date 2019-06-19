@@ -72,14 +72,16 @@ class PublisherBrokerHandler(BrokerHandler):
             topic_group.sender = self.sender
             self._schedule_topic_group(topic_group)
 
-    def add_topic_group(self, topic: TopicGroup) -> None:
+    def add_topic_group(self, topic_group: TopicGroup) -> None:
         """
-        :param topic:
+        # NOTE: This approach of publisher does not allow to modify the set of topic groups while the app is running.
+                That would mean to sync the topics in Subscription Manager as well which is not currently 100% supported
+
         """
         if self.started:
-            _logger.info("Cannot add new topic group while running.")
+            _logger.info("Cannot add new topic group while app is running.")
 
-        self.topic_groups.append(topic)
+        self.topic_groups.append(topic_group)
 
     def _schedule_topic_group(self, topic_group: TopicGroup) -> None:
         """

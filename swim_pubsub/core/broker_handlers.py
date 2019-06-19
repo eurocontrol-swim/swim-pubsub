@@ -60,9 +60,10 @@ class BrokerHandler(MessagingHandler):
 
     @property
     def host(self) -> str:
-        protocol = "amqps" if self.ssl_domain else "amqp"
+        protocol, port = ("amqps", 5671) if self.ssl_domain else ("amqp", 5672)
 
-        return f"{protocol}://{self._host}"
+
+        return f"{protocol}://{self._host}:{port}"
 
     def on_start(self, event: proton.Event):
         """

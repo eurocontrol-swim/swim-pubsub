@@ -29,10 +29,10 @@ Details on EUROCONTROL: http://www.eurocontrol.int
 """
 import logging
 from functools import wraps
-from typing import Callable
+from typing import Callable, Union
 
 import yaml
-from proton import SSLDomain
+from proton import SSLDomain, SSLUnavailable
 
 from swim_pubsub.core import ConfigDict
 from swim_pubsub.core.errors import SubscriptionManagerServiceError
@@ -58,7 +58,7 @@ def yaml_file_to_dict(filename: str) -> ConfigDict:
     return obj or None
 
 
-def get_ssl_domain(certificate_db: str, cert_file: str, cert_key: str, password: str) -> SSLDomain:
+def get_ssl_domain(certificate_db: str, cert_file: str, cert_key: str, password: str) -> Union[SSLDomain, None]:
     """
     Creates an SSLDomain to be passed upon connecting to the broker
     :param certificate_db: path to certificate DB
@@ -67,7 +67,11 @@ def get_ssl_domain(certificate_db: str, cert_file: str, cert_key: str, password:
     :param password: password of the client
     :return:
     """
-    ssl_domain = SSLDomain(SSLDomain.VERIFY_PEER)
+    try:
+        raise SSLUnavailable()
+        ssl_domain = SSLDomain(SSLDomain.VERIFY_PEER)
+    except SSLUnavailable:
+        return None
 
     ssl_domain.set_trusted_ca_db(certificate_db)
     ssl_domain.set_credentials(cert_file, cert_key, password)
