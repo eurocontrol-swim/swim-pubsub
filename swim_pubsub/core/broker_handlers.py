@@ -60,10 +60,10 @@ class BrokerHandler(MessagingHandler):
 
     @property
     def host(self) -> str:
-        protocol, port = ("amqps", 5671) if self.ssl_domain else ("amqp", 5672)
+        protocol = "amqps" if self.ssl_domain else "amqp"
 
 
-        return f"{protocol}://{self._host}:{port}"
+        return f"{protocol}://{self._host}"
 
     def on_start(self, event: proton.Event):
         """
@@ -91,10 +91,14 @@ class BrokerHandler(MessagingHandler):
         :param config:
         :return: BrokerHandler
         """
+
         ssl_domain = get_ssl_domain(
             certificate_db=config['cert_db'],
             cert_file=config['cert_file'],
             cert_key=config['cert_key'],
             password=config['cert_password']
-        )
-        return cls(host=config['host'], ssl_domain=ssl_domain)
+        ) if config['tsl_enabled'] else None
+
+        host = f"{config['host']}:{config['port']}"
+
+        return cls(host=host, ssl_domain=ssl_domain)
