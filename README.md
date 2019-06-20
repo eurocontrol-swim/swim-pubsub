@@ -1,4 +1,4 @@
-# SWIM PubSub: Publish/Subscribe mini framework 1.2.0
+# SWIM PubSub: Publish/Subscribe mini framework 1.3.2
 
 SWIM PubSub implements the publish-subscribe messaging pattern. It is based on the python library 
 [qpid-proton](https://github.com/apache/qpid-proton/tree/master/python) which extends and can be used to create
