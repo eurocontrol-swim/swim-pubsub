@@ -68,7 +68,6 @@ def get_ssl_domain(certificate_db: str, cert_file: str, cert_key: str, password:
     :return:
     """
     try:
-        raise SSLUnavailable()
         ssl_domain = SSLDomain(SSLDomain.VERIFY_PEER)
     except SSLUnavailable:
         return None
