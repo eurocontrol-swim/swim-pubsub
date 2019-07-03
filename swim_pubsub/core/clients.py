@@ -70,7 +70,7 @@ class Client:
         """
         sm_client = cls._create_sm_client(sm_config, username, password)
 
-        sm_service =  SubscriptionManagerService(sm_client)
+        sm_service = SubscriptionManagerService(sm_client)
 
         return cls(broker_handler, sm_service)
 
@@ -87,6 +87,7 @@ class Client:
             host=config['host'],
             https=config['https'],
             timeout=config['timeout'],
+            verify=config['verify'],
             username=username,
             password=password
         )
