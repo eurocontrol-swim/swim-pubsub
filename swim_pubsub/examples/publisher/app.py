@@ -99,7 +99,7 @@ if __name__ == '__main__':
         arrivals_topic.create_topic(id=f"arrivals.{airport.lower()}", callback=arrivals_callback)
         departures_topic.create_topic(id=f"departures.{airport.lower()}", callback=departures_callback)
 
-    publisher = app.register_publisher('test', 'test')
+    publisher = app.register_publisher('swim-adsb', 'swim-adsb')
     publisher.register_topic_group(arrivals_topic)
     publisher.register_topic_group(departures_topic)
 

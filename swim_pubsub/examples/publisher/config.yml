@@ -27,9 +27,8 @@ LOGGING:
       level: INFO
 
 BROKER:
-  host: 'localhost'
-  port: 5672
-  tsl_enabled: false
+  host: 'localhost:5472'
+  tls_enabled: false
   cert_db: '/home/alex/certs/ca_certificate.pem'
   cert_file: '/home/alex/certs/client_certificate.pem'
   cert_key: '/home/alex/certs/client_key.pem'

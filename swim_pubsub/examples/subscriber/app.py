@@ -46,7 +46,7 @@ app = SubApp.create_from_config(config_file)
 
 app.run(threaded=True)
 
-subscriber = app.register_subscriber('test', 'test')
+subscriber = app.register_subscriber('swim-explorer', 'swim-explorer')
 
 
 # basic functions of the core

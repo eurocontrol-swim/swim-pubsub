@@ -26,7 +26,7 @@ it. More specifically:
 
   - `host`: the host of the broker, e.g. localhost
   - `port`: the port of the broker, e.g. 5672 by default or 5671 for TSL connection
-  - `tsl_enabled`: determines whether the client will be connected to the broker via secure connection
+  - `tls_enabled`: determines whether the client will be connected to the broker via secure connection
   - `cert_db`: the path to the certificate db
   - `cert_file`: the path to the client's certificate
   - `cert_key`: the path to the client's key
@@ -37,7 +37,7 @@ Example:
 BROKER:
   host: 'localhost'
   port: 5671
-  tsl_enabled: true
+  tls_enabled: true
   cert_db: '/path/to/ca_certificate.pem'
   cert_file: '/path/to/client_certificate.pem'
   cert_key: '/path/to/client_key.pem'

@@ -97,8 +97,6 @@ class BrokerHandler(MessagingHandler):
             cert_file=config['cert_file'],
             cert_key=config['cert_key'],
             password=config['cert_password']
-        ) if config['tsl_enabled'] else None
+        ) if config['tls_enabled'] else None
 
-        host = f"{config['host']}:{config['port']}"
-
-        return cls(host=host, ssl_domain=ssl_domain)
+        return cls(host=config['host'], ssl_domain=ssl_domain)
