@@ -55,6 +55,7 @@ class PublisherBrokerHandler(BrokerHandler):
 
         self.topic_groups = []
         self.endpoint = '/exchange/amq.topic'
+        self.sender = None
 
     def on_start(self, event: proton.Event) -> None:
         """

@@ -28,12 +28,12 @@ http://opensource.org/licenses/BSD-3-Clause
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
 import logging
-from typing import Optional, Callable, List, Any
+from typing import Optional, Callable, List
 
 import proton
 from proton._handlers import MessagingHandler
 
-from swim_pubsub.core.errors import BrokerHandlerError
+from swim_pubsub.core.errors import BrokerHandlerError, AppError
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -62,6 +62,9 @@ class TopicGroup(MessagingHandler):
 
         self._sender: Optional[proton.Sender] = None
 
+    def __repr__(self):
+        return f"<TopicGroup: {self.name} / {self.interval_in_sec} sec>"
+
     @property
     def sender(self):
         return self._sender
@@ -73,18 +76,18 @@ class TopicGroup(MessagingHandler):
 
     @property
     def topic_ids(self) -> List[str]:
-        return [topic.id for topic in self.topics]
+        return [topic.topic_id for topic in self.topics]
 
-    def create_topic(self, id: str, callback):
+    def create_topic(self, topic_id: str, callback):
         """
         Creates and appends in the list a new Topic based on the given id and callback
-        :param id:
+        :param topic_id:
         :param callback:
         """
-        if id in self.topic_ids:
-            raise BrokerHandlerError(f"There is already topic with id {id}")
+        if topic_id in self.topic_ids:
+            raise BrokerHandlerError(f"There is already topic with id {topic_id}")
 
-        topic = Topic(id, callback)
+        topic = Topic(topic_id, callback)
         self.topics.append(topic)
 
         return topic
@@ -100,7 +103,15 @@ class TopicGroup(MessagingHandler):
         topic_group_data = self.callback() if self.callback else None
 
         for topic in self.topics:
-            message = topic.generate_message(topic_group_data=topic_group_data)
+            try:
+                message = topic.callback(topic_group_data=topic_group_data)
+            except AppError as e:
+                _logger.error(f"Error while generating message for topic {topic}: {str(e)}")
+                continue
+
+            # add the topic id as subject in order to route the message accordingly
+            message.subject = topic.topic_id
+
             if self.sender.credit:
                 self.sender.send(message)
                 _logger.info(f"Sent message: {message}")
@@ -120,26 +131,16 @@ class TopicGroup(MessagingHandler):
 
 class Topic:
 
-    def __init__(self, id: str, callback: Callable):
+    def __init__(self, topic_id: str, callback: Callable):
         """
         Wraps the concept of a broker topic. It generates data through the given callback and routes them in the broker
         based on its id.
 
-        :param id:
-        :param callback:
+        :param topic_id:
+        :param callback: the callback which return a proton.Message instance
         """
-        self.id: str = id
+        self.topic_id: str = topic_id
         self.callback: Callable = callback
 
-    def generate_message(self, topic_group_data: Optional[Any] = None):
-        """
-        Generates the topic data by running the assigned callback. The body of the message will be {'data': data} and
-        the type of data depends on the return value of the callback.
-
-        :param topic_group_data: optional data that could be coming from the TopicGroup
-        """
-        data = self.callback(topic_group_data=topic_group_data)
-
-        result = proton.Message(body={'data': data}, subject=self.id)
-
-        return result
+    def __repr__(self):
+        return f"<Topic: {self.topic_id}>"

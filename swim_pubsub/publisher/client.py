@@ -80,7 +80,7 @@ class Publisher(Client):
         Registers the topics of each group to the SubscriptionManager. It can be used before starting the corresponding
         app.
         """
-        topics_to_populate = [id for topic_group in self.topic_groups for id in topic_group.topic_ids]
+        topics_to_populate = [topic_id for topic_group in self.topic_groups for topic_id in topic_group.topic_ids]
 
         for topic in topics_to_populate:
             try:

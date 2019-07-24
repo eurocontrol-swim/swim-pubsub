@@ -27,17 +27,24 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
+import json
 import os
+
+from proton import Message
 
 from swim_pubsub.subscriber import SubApp
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-def handler(body, topic):
+def handler(message: Message, topic: str) -> None:
 
     with open(f'/home/alex/data/{topic}', 'a') as f:
-        f.write(f'{topic}: {body["data"]}\n')
+        data = json.loads(message.body)
+
+        f.write("New message:\n")
+        f.write(f'Content-Type: {message.content_type}\n')
+        f.write(f'Data: {json.dumps(data, indent=4, sort_keys=True)}\n\n')
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))

@@ -1,4 +1,4 @@
-# SWIM PubSub: Publish/Subscribe mini framework 1.3.2
+# SWIM PubSub: Publish/Subscribe mini framework 1.4.0
 
 SWIM PubSub implements the publish-subscribe messaging pattern. It is based on the python library 
 [qpid-proton](https://github.com/apache/qpid-proton/tree/master/python) which extends and can be used to create
@@ -152,6 +152,9 @@ contents in accordance to the above rules:
 
 ```python
 import random
+import json
+
+from proton import Message
 
 from swim_pubsub.core.topics import TopicGroup
 from swim_pubsub.publisher import PubApp
@@ -161,11 +164,23 @@ def random_integers():
     return [random.randrange(100) for _ in range(100)]
 
 def even_integers(topic_group_data):
-    return [num for num in topic_group_data if num % 2 == 0]
+    data = [num for num in topic_group_data if num % 2 == 0]
+    
+    message = Message()
+    message.content_type = 'application/json'
+    message.body = json.dumps(data)
+    
+    return message
 
 def odd_integers(topic_group_data):
-    return [num for num in topic_group_data if num % 2 == 1]
+    data = [num for num in topic_group_data if num % 2 == 1]
 
+    message = Message()
+    message.content_type = 'application/json'
+    message.body = json.dumps(data)
+    
+    return message
+    
 # create topics
 integers = TopicGroup(name='integers', interval_in_sec=5, callback=random_integers)
 integers.create_topic(id="integers.even", callback=even_integers)
@@ -217,10 +232,11 @@ from swim_pubsub.subscriber import SubApp
 # it will be a dictionary such as {'data': publisher_data} where publisher_data is the actual data coming from the 
 # publisher
 def save_numbers(message, type):
-    numbers = ", ".join(message['data'])
     
     with open(f'{type}_numbers.txt', 'a') as f:
-        f.write(f"{numbers}\n")
+        f.write('New message:\n')
+        f.write(f'Content Type: {message.content_type}')
+        f.write(f"Data: {message.body}\n")
     
 save_even_numbers = partial(save_numbers, type='even')
 save_odd_numbers = partial(save_numbers, type='odd')

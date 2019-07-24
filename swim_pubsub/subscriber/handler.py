@@ -33,7 +33,7 @@ from typing import Optional, Dict, Tuple, Callable
 import proton
 
 from swim_pubsub.core.broker_handlers import BrokerHandler
-
+from swim_pubsub.core.errors import AppError
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -71,8 +71,8 @@ class SubscriberBrokerHandler(BrokerHandler):
         Create a new `proton.Receiver` and assign the queue and the callback to it
 
         :param queue: the queue name
-        :param callback: a callable that should accept a parameter `data` in order to process the incoming data from the
-                         queue.
+        :param callback: a callable that should accept a parameter `message` in order to process the incoming data from
+                         the queue.
         """
         receiver = self._create_receiver(queue)
 
@@ -104,6 +104,9 @@ class SubscriberBrokerHandler(BrokerHandler):
 
         :param event:
         """
-        _, callback = self.receivers[event.receiver]
+        queue, callback = self.receivers[event.receiver]
 
-        callback(event.message.body)
+        try:
+            callback(event.message)
+        except AppError as e:
+            _logger.error(f"Error while processing message {event.message} from queue {queue}: {str(e)}")

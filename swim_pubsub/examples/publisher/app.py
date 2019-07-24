@@ -27,10 +27,14 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
+import json
 from datetime import datetime, timedelta
 from functools import partial
+from typing import Any, Optional, List
 
+from opensky_network_client.models import FlightConnection
 from opensky_network_client.opensky_network import OpenskyNetworkClient
+from proton import Message
 from rest_client.errors import APIError
 
 from swim_pubsub.core.topics import TopicGroup
@@ -51,7 +55,7 @@ class OpenSkyNetworkDataHandler:
     def __init__(self):
         self.client = OpenskyNetworkClient.create('opensky-network.org')
 
-    def arrivals_today_handler(self, icao24, topic_group_data=None):
+    def _get_arrivals_today(self, icao24: str) -> List[FlightConnection]:
         begin, end = _today()
 
         try:
@@ -59,10 +63,18 @@ class OpenSkyNetworkDataHandler:
         except APIError:
             result = []
 
-        return "\n".join(f'{arr["icao24"]} arrived from {arr["estDepartureAirport"]} to {arr["estArrivalAirport"]}'
-                         for arr in result)
+        return result
 
-    def departures_today_handler(self, icao24, topic_group_data=None):
+    def arrivals_today_handler(self, icao24: str, topic_group_data: Optional[Any] = None) -> Message:
+        arrivals = self._get_arrivals_today(icao24)
+
+        message = Message()
+        message.content_type = 'application/json'
+        message.body = json.dumps(arrivals)
+
+        return message
+
+    def _get_departures_today(self, icao24: str) -> List[FlightConnection]:
         begin, end = _today()
 
         try:
@@ -70,8 +82,16 @@ class OpenSkyNetworkDataHandler:
         except APIError:
             result = []
 
-        return "\n".join(f'{arr["icao24"]} departed from {arr["estDepartureAirport"]} to {arr["estArrivalAirport"]}'
-                         for arr in result)
+        return result
+
+    def departures_today_handler(self, icao24: str, topic_group_data: Optional[Any] = None) -> Message:
+        departures = self._get_departures_today(icao24)
+
+        message = Message()
+        message.content_type = 'application/json'
+        message.body = json.dumps(departures)
+
+        return message
 
 
 if __name__ == '__main__':
@@ -96,8 +116,8 @@ if __name__ == '__main__':
         arrivals_callback = partial(data_handler.arrivals_today_handler, icao24)
         departures_callback = partial(data_handler.departures_today_handler, icao24)
 
-        arrivals_topic.create_topic(id=f"arrivals.{airport.lower()}", callback=arrivals_callback)
-        departures_topic.create_topic(id=f"departures.{airport.lower()}", callback=departures_callback)
+        arrivals_topic.create_topic(topic_id=f"arrivals.{airport.lower()}", callback=arrivals_callback)
+        departures_topic.create_topic(topic_id=f"departures.{airport.lower()}", callback=departures_callback)
 
     publisher = app.register_publisher('swim-adsb', 'swim-adsb')
     publisher.register_topic_group(arrivals_topic)
