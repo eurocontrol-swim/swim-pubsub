@@ -36,7 +36,7 @@ import proton
 from proton._handlers import MessagingHandler
 
 from swim_pubsub.core import ConfigDict
-from swim_pubsub.core.utils import get_ssl_domain
+from swim_pubsub.core import utils
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -57,6 +57,8 @@ class BrokerHandler(MessagingHandler):
         self._host = host
         self.ssl_domain = ssl_domain
         self.started = False
+        self.container = None
+        self.conn = None
 
     @property
     def host(self) -> str:
@@ -91,7 +93,7 @@ class BrokerHandler(MessagingHandler):
         :return: BrokerHandler
         """
 
-        ssl_domain = get_ssl_domain(
+        ssl_domain = utils.get_ssl_domain(
             certificate_db=config['cert_db'],
             cert_file=config['cert_file'],
             cert_key=config['cert_key'],

@@ -27,69 +27,36 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-import logging
-from functools import wraps
-from typing import Callable, Union
+from unittest import mock
 
-import yaml
-from proton import SSLDomain, SSLUnavailable
+import pytest
 
-from swim_pubsub.core import ConfigDict
-from swim_pubsub.core.errors import SubscriptionManagerServiceError
+from swim_pubsub.core.broker_handlers import BrokerHandler
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-_logger = logging.getLogger(__name__)
+@pytest.mark.parametrize('host, ssl_domain, expected_host', [
+    ('hostname', mock.Mock(), 'amqps://hostname'),
+    ('hostname', None, 'amqp://hostname')
+])
+def test__broker_handler__host_string(host, ssl_domain, expected_host):
+    broker_handler = BrokerHandler(host, ssl_domain)
+
+    assert expected_host == broker_handler.host
 
 
-def yaml_file_to_dict(filename: str) -> ConfigDict:
-    """
-    Converts a yml file into a dict
-    :param filename:
-    :return:
-    """
-    if not filename.endswith(".yml"):
-        raise ValueError("YAML config files should end with '.yml' extension (RTFMG).")
+def test_broker_handler__create_from_config():
+    broker_config = {
+        'cert_db': 'cert_db',
+        'cert_file': 'cert_file',
+        'cert_key': 'cert_key',
+        'cert_password': 'cert_password',
+        'tls_enabled': True,
+        'host': 'hostname'
+    }
 
-    with open(filename) as f:
-        obj = yaml.load(f, Loader=yaml.FullLoader)
+    with mock.patch('swim_pubsub.core.utils.get_ssl_domain', return_value=mock.Mock()):
+        broker_handler = BrokerHandler.create_from_config(broker_config)
 
-    return obj or None
-
-
-def get_ssl_domain(certificate_db: str, cert_file: str, cert_key: str, password: str) -> Union[SSLDomain, None]:
-    """
-    Creates an SSLDomain to be passed upon connecting to the broker
-    :param certificate_db: path to certificate DB
-    :param cert_file: path to client certificate
-    :param cert_key: path to client key
-    :param password: password of the client
-    :return:
-    """
-    try:
-        ssl_domain = SSLDomain(SSLDomain.VERIFY_PEER)
-    except SSLUnavailable:
-        return None
-
-    ssl_domain.set_trusted_ca_db(certificate_db)
-    ssl_domain.set_credentials(cert_file, cert_key, password)
-
-    return ssl_domain
-
-
-def sms_error_handler(f: Callable) -> Callable:
-    """
-    Handles SubscriptionManagerServiceError cases by logging the error before raising
-    :param f:
-    :return:
-    """
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        try:
-            return f(*args, **kwargs)
-        except SubscriptionManagerServiceError as e:
-            message = f"Error while accessing Subscription Manager: {str(e)}"
-            _logger.error(message)
-            raise e
-    return wrapper
+        assert isinstance(broker_handler, BrokerHandler)

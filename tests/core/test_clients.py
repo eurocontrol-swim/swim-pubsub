@@ -27,69 +27,57 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-import logging
-from functools import wraps
-from typing import Callable, Union
+from unittest import mock
 
-import yaml
-from proton import SSLDomain, SSLUnavailable
+import pytest
+from rest_client.errors import APIError
+from subscription_manager_client.subscription_manager import SubscriptionManagerClient
 
-from swim_pubsub.core import ConfigDict
-from swim_pubsub.core.errors import SubscriptionManagerServiceError
+from swim_pubsub.core.clients import Client
+from swim_pubsub.core.errors import ClientError
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-_logger = logging.getLogger(__name__)
+def test_client__create_sm_client__invalid_username_password__raises_ClientError():
+    sm_config = {
+        'host': 'host',
+        'https': True,
+        'timeout': 10,
+        'verify': 'verify'
+    }
+
+    api_error = APIError('detail', 401)
+    with mock.patch.object(SubscriptionManagerClient, 'ping_credentials', side_effect=api_error):
+        with pytest.raises(ClientError) as e:
+            Client._create_sm_client(sm_config, 'username', 'password')
+            assert 'Invalid user credentials' == str(e)
 
 
-def yaml_file_to_dict(filename: str) -> ConfigDict:
-    """
-    Converts a yml file into a dict
-    :param filename:
-    :return:
-    """
-    if not filename.endswith(".yml"):
-        raise ValueError("YAML config files should end with '.yml' extension (RTFMG).")
+def test_client__create_sm_client__returns_SubscriptionManagerClient_object():
+    sm_config = {
+        'host': 'host',
+        'https': True,
+        'timeout': 10,
+        'verify': 'verify'
+    }
+    with mock.patch.object(SubscriptionManagerClient, 'ping_credentials', return_value=mock.Mock()):
+        sm_client = Client._create_sm_client(sm_config, 'username', 'password')
 
-    with open(filename) as f:
-        obj = yaml.load(f, Loader=yaml.FullLoader)
-
-    return obj or None
+        assert isinstance(sm_client, SubscriptionManagerClient)
 
 
-def get_ssl_domain(certificate_db: str, cert_file: str, cert_key: str, password: str) -> Union[SSLDomain, None]:
-    """
-    Creates an SSLDomain to be passed upon connecting to the broker
-    :param certificate_db: path to certificate DB
-    :param cert_file: path to client certificate
-    :param cert_key: path to client key
-    :param password: password of the client
-    :return:
-    """
-    try:
-        ssl_domain = SSLDomain(SSLDomain.VERIFY_PEER)
-    except SSLUnavailable:
-        return None
+def test_client__create__returns_Client_object():
+    sm_config = {
+        'host': 'host',
+        'https': True,
+        'timeout': 10,
+        'verify': False
+    }
+    broker_handler = mock.Mock()
 
-    ssl_domain.set_trusted_ca_db(certificate_db)
-    ssl_domain.set_credentials(cert_file, cert_key, password)
+    with mock.patch.object(SubscriptionManagerClient, 'ping_credentials', return_value=mock.Mock()):
 
-    return ssl_domain
+        client = Client.create(broker_handler, sm_config, 'username', 'password')
 
-
-def sms_error_handler(f: Callable) -> Callable:
-    """
-    Handles SubscriptionManagerServiceError cases by logging the error before raising
-    :param f:
-    :return:
-    """
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        try:
-            return f(*args, **kwargs)
-        except SubscriptionManagerServiceError as e:
-            message = f"Error while accessing Subscription Manager: {str(e)}"
-            _logger.error(message)
-            raise e
-    return wrapper
+        assert isinstance(client, Client)

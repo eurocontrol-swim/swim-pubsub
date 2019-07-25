@@ -97,7 +97,7 @@ class TopicGroup(MessagingHandler):
         Generate and dispatch messages for each topic in the list
         """
         if not self.sender:
-            _logger.info("Not able to dispatch messages because no sender has been assigned yet")
+            _logger.warning("Not able to dispatch messages because no sender has been assigned yet")
             return
 
         topic_group_data = self.callback() if self.callback else None

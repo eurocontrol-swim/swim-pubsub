@@ -34,10 +34,10 @@ from typing import Optional, List, Callable, Type
 from proton._reactor import Container
 
 from swim_pubsub.core.clients import Client
-from swim_pubsub.core.utils import yaml_file_to_dict
 from swim_pubsub.core import ConfigDict
 from swim_pubsub.core.errors import AppError
 from swim_pubsub.core.broker_handlers import BrokerHandler
+from swim_pubsub.core import utils
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -110,11 +110,16 @@ class App(_ProtonContainer):
         Usage:
         >>> handler = BrokerHandler()
         >>> app = App(handler)
-        >>> @app.pre_run
+        >>>
+        >>> @app.before_run
         >>> def action():
         >>>     print("Before run")
+        >>>
         >>> app.run()
         """
+        if not callable(f):
+            raise AppError(f'{f} is not callable')
+
         self._before_run_actions.append(f)
 
     def run(self, threaded: bool = False):
@@ -160,7 +165,7 @@ class App(_ProtonContainer):
         :param config_file: the path of the config file
         :param broker_handler_class:
         """
-        config = yaml_file_to_dict(config_file)
+        config = utils.yaml_file_to_dict(config_file)
         handler = broker_handler_class.create_from_config(config['BROKER'])
         app = cls(handler)
         app.config = config

@@ -80,7 +80,8 @@ class PublisherBrokerHandler(BrokerHandler):
 
         """
         if self.started:
-            _logger.info("Cannot add new topic group while app is running.")
+            _logger.warning("Cannot add new topic group while app is running.")
+            return
 
         self.topic_groups.append(topic_group)
 

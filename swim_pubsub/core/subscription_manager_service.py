@@ -76,26 +76,6 @@ class SubscriptionManagerService:
 
         self.client.post_topic(topic)
 
-    def sync_topics(self, topic_names: List[str]):
-        """
-        Synchronizes the Subscription Manager with the given topic names. New names will create new topic records and
-        missing names will be deleted.
-        """
-        db_topics = self.client.get_topics()
-
-        db_topic_names = [topic.name for topic in db_topics]
-
-        topic_names_to_create = set(topic_names) - set(db_topic_names)
-        topic_names_to_delete = set(db_topic_names) - set(topic_names)
-
-        for topic_name in topic_names_to_create:
-            self.create_topic(topic_name)
-
-        db_topic_ids_to_delete = [topic.id for topic in db_topics if topic.name in topic_names_to_delete]
-
-        for topic_id in db_topic_ids_to_delete:
-            self.client.delete_topic_by_id(topic_id)
-
     def subscribe(self, topic_name: str) -> str:
         """
         Subscribes the client to the given topic.
@@ -107,7 +87,7 @@ class SubscriptionManagerService:
         try:
             topic = [topic for topic in db_topics if topic.name == topic_name][0]
         except IndexError:
-            raise SubscriptionManagerServiceError(f"{topic_name} is not registered")
+            raise SubscriptionManagerServiceError(f"{topic_name} is not registered in Subscription Manager")
 
         subscription = Subscription(
             topic_id=topic.id
