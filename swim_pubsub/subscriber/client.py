@@ -31,7 +31,7 @@ import logging
 from typing import Dict, List, Callable
 
 from swim_pubsub.core.clients import Client
-from swim_pubsub.core.utils import sms_error_handler
+from swim_pubsub.core.utils import handle_sms_error, handle_broker_handler_error
 from swim_pubsub.core.subscription_manager_service import SubscriptionManagerService
 from swim_pubsub.subscriber.handler import SubscriberBrokerHandler
 
@@ -57,14 +57,15 @@ class Subscriber(Client):
 
         self.subscriptions: Dict[str, str] = {}
 
-    @sms_error_handler
+    @handle_sms_error
     def get_topics(self) -> List[str]:
         """
         Retrieves all the topic names from the SubscriptionManager
         """
         return self.sm_service.get_topics()
 
-    @sms_error_handler
+    @handle_sms_error
+    @handle_broker_handler_error
     def subscribe(self, topic_name: str, callback: Callable):
         """
         Subscribes the subscriber to the given topic name in the SubscriptionManager. The SubscriptionManager will
@@ -81,7 +82,8 @@ class Subscriber(Client):
 
         self.subscriptions[topic_name] = queue
 
-    @sms_error_handler
+    @handle_sms_error
+    @handle_broker_handler_error
     def unsubscribe(self, topic_name: str):
         """
         Unsubscribes the subscriber from the given topic by removing the corresponding receiver from the handler and by
@@ -93,9 +95,9 @@ class Subscriber(Client):
         self.broker_handler.remove_receiver(queue)
 
         self.sm_service.unsubscribe(queue)
-        _logger.info("Deleted subscription from SM")
+        _logger.info("Deleted subscription from Subscription Manager")
 
-    @sms_error_handler
+    @handle_sms_error
     def pause(self, topic_name: str):
         """
         Pauses the subscription of the given topic by pausing the corresponding subscription in the SubscriptionManager
@@ -104,9 +106,9 @@ class Subscriber(Client):
         queue = self.subscriptions[topic_name]
 
         self.sm_service.pause(queue)
-        _logger.info("Paused subscription in SM")
+        _logger.info("Paused subscription in Subscription Manager")
 
-    @sms_error_handler
+    @handle_sms_error
     def resume(self, topic_name: str):
         """
         Resumes the subscription of the given topic by resuming the corresponding subscription in the SubscriptionManager
@@ -115,4 +117,4 @@ class Subscriber(Client):
         queue = self.subscriptions[topic_name]
 
         self.sm_service.resume(queue)
-        _logger.info("Resumed subscription in SM")
+        _logger.info("Resumed subscription in Subscription Manager")

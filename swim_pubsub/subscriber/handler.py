@@ -33,7 +33,7 @@ from typing import Optional, Dict, Tuple, Callable
 import proton
 
 from swim_pubsub.core.broker_handlers import BrokerHandler
-from swim_pubsub.core.errors import AppError
+from swim_pubsub.core.errors import AppError, BrokerHandlerError
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -79,7 +79,7 @@ class SubscriberBrokerHandler(BrokerHandler):
         self.receivers[receiver] = (queue, callback)
 
         _logger.debug(f"Created receiver {receiver}")
-        _logger.debug(f'Start receiving on: {queue}')
+        _logger.debug(f'Start receiving on {queue}')
 
         return receiver
 
@@ -90,6 +90,9 @@ class SubscriberBrokerHandler(BrokerHandler):
         :param queue: the queue name
         """
         receiver = self._get_receiver_by_queue(queue)
+
+        if not receiver:
+            raise BrokerHandlerError(f'No receiver found for queue: {queue}')
 
         # close the receiver
         receiver.close()

@@ -33,6 +33,7 @@ from typing import Optional
 import proton
 
 from swim_pubsub.core.broker_handlers import BrokerHandler
+from swim_pubsub.core.errors import BrokerHandlerError
 from swim_pubsub.core.topics import TopicGroup
 
 __author__ = "EUROCONTROL (SWIM)"
@@ -66,7 +67,11 @@ class PublisherBrokerHandler(BrokerHandler):
         # call the parent event handler first to take care of connection
         super().on_start(event)
 
-        self.sender = self._create_sender(self.endpoint)
+        try:
+            self.sender = self._create_sender(self.endpoint)
+        except BrokerHandlerError as e:
+            _logger.error(f'Error while creating sender: {str(e)}')
+            return
 
         # assigns the sender on all available topic groups and schedules them
         for topic_group in self.topic_groups:

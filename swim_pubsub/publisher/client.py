@@ -68,7 +68,7 @@ class Publisher(Client):
         """
         Adds the topic group in the local dictionary and in the handler's list
         """
-        if topic_group.name in self.topic_groups:
+        if topic_group.name in self.topic_groups_dict.keys():
             raise ClientError(f'TopicGroup {topic_group.name} already exists')
 
         self.topic_groups_dict[topic_group.name] = topic_group
@@ -86,4 +86,4 @@ class Publisher(Client):
             try:
                 self.sm_service.create_topic(topic)
             except APIError as e:
-                _logger.info(f"Error while registering {topic}: {str(e)}")
+                _logger.info(f"Error while registering topic: {topic}: {str(e)}")

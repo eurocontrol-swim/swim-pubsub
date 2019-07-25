@@ -35,7 +35,7 @@ import yaml
 from proton import SSLDomain, SSLUnavailable
 
 from swim_pubsub.core import ConfigDict
-from swim_pubsub.core.errors import SubscriptionManagerServiceError
+from swim_pubsub.core.errors import SubscriptionManagerServiceError, BrokerHandlerError
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -78,7 +78,7 @@ def get_ssl_domain(certificate_db: str, cert_file: str, cert_key: str, password:
     return ssl_domain
 
 
-def sms_error_handler(f: Callable) -> Callable:
+def handle_sms_error(f: Callable) -> Callable:
     """
     Handles SubscriptionManagerServiceError cases by logging the error before raising
     :param f:
@@ -91,5 +91,21 @@ def sms_error_handler(f: Callable) -> Callable:
         except SubscriptionManagerServiceError as e:
             message = f"Error while accessing Subscription Manager: {str(e)}"
             _logger.error(message)
+            raise e
+    return wrapper
+
+
+def handle_broker_handler_error(f: Callable) -> Callable:
+    """
+    Handles BrokerHandlerError cases by logging the error before raising
+    :param f:
+    :return:
+    """
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except BrokerHandlerError as e:
+            _logger.error(str(e))
             raise e
     return wrapper

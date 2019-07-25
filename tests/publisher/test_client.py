@@ -27,57 +27,59 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
+import logging
 from unittest import mock
 
 import pytest
+from rest_client.errors import APIError
 
-from swim_pubsub.core.broker_handlers import BrokerHandler
-from swim_pubsub.core.errors import BrokerHandlerError
+from swim_pubsub.core.errors import ClientError
+from swim_pubsub.core.topics import TopicGroup
+from swim_pubsub.publisher import Publisher
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-@pytest.mark.parametrize('host, ssl_domain, expected_host', [
-    ('hostname', mock.Mock(), 'amqps://hostname'),
-    ('hostname', None, 'amqp://hostname')
-])
-def test__broker_handler__host_string(host, ssl_domain, expected_host):
-    broker_handler = BrokerHandler(host, ssl_domain)
+def test_publisher__register_topic_group__topic_group_already_exists__raises_ClientError():
+    broker_handler = mock.Mock()
+    sm_service = mock.Mock()
+    topic_group = TopicGroup(name='group', interval_in_sec=5)
 
-    assert expected_host == broker_handler.host
+    publisher = Publisher(broker_handler, sm_service)
 
+    publisher.topic_groups_dict[topic_group.name] = topic_group
 
-def test_broker_handler__create_from_config():
-    broker_config = {
-        'cert_db': 'cert_db',
-        'cert_file': 'cert_file',
-        'cert_key': 'cert_key',
-        'cert_password': 'cert_password',
-        'tls_enabled': True,
-        'host': 'hostname'
-    }
-
-    with mock.patch('swim_pubsub.core.utils.get_ssl_domain', return_value=mock.Mock()):
-        broker_handler = BrokerHandler.create_from_config(broker_config)
-
-        assert isinstance(broker_handler, BrokerHandler)
+    with pytest.raises(ClientError) as e:
+        publisher.register_topic_group(topic_group)
+        assert f'TopicGroup {topic_group.name} already exists' == str(e)
 
 
-def test_broker_handler__create_receiver_fails__raises_BrokerHAndlerError():
-    broker_handler = BrokerHandler('host')
-    broker_handler.container = mock.Mock()
-    broker_handler.container.create_receiver = mock.Mock(side_effect=Exception('proton error'))
+def test_publisher__register_topic_group__topic_group_does_not_exist_and_is_registered():
+    broker_handler = mock.Mock()
+    sm_service = mock.Mock()
+    topic_group = TopicGroup(name='group', interval_in_sec=5)
 
-    with pytest.raises(BrokerHandlerError) as e:
-        broker_handler._create_receiver('endpoint')
-        assert f"proton error" == str(e)
+    publisher = Publisher(broker_handler, sm_service)
+
+    publisher.register_topic_group(topic_group)
+
+    assert topic_group in publisher.topic_groups
 
 
-def test_broker_handler__create_sender_fails__raises_BrokerHAndlerError():
-    broker_handler = BrokerHandler('host')
-    broker_handler.container = mock.Mock()
-    broker_handler.container.create_sender = mock.Mock(side_effect=Exception('proton error'))
+def test_publisher__populate_topics__sm_api_error__logs_error(caplog):
+    caplog.set_level(logging.INFO)
 
-    with pytest.raises(BrokerHandlerError) as e:
-        broker_handler._create_sender('endpoint')
-        assert f"proton error" == str(e)
+    broker_handler = mock.Mock()
+    sm_service = mock.Mock()
+    topic_group = TopicGroup(name='group', interval_in_sec=5)
+    topic_group.create_topic('topic', callback=mock.Mock())
+
+    publisher = Publisher(broker_handler, sm_service)
+    publisher.register_topic_group(topic_group)
+
+    publisher.sm_service.create_topic = mock.Mock(side_effect=APIError('server error', status_code=500))
+
+    publisher.populate_topics()
+
+    log_message = caplog.records[0]
+    assert f"Error while registering topic: topic: server error"

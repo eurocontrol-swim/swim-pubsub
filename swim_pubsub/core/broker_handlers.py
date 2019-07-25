@@ -37,6 +37,7 @@ from proton._handlers import MessagingHandler
 
 from swim_pubsub.core import ConfigDict
 from swim_pubsub.core import utils
+from swim_pubsub.core.errors import BrokerHandlerError
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -66,7 +67,7 @@ class BrokerHandler(MessagingHandler):
 
         return f"{protocol}://{self._host}"
 
-    def on_start(self, event: proton.Event):
+    def  on_start(self, event: proton.Event):
         """
         Is triggered upon running the `proton.Container` that uses this handler. It creates a connection to the broker
         and can be overridden for further startup functionality.
@@ -79,10 +80,16 @@ class BrokerHandler(MessagingHandler):
         _logger.info(f'Connected to broker @ {self.host}')
 
     def _create_sender(self, endpoint: str) -> proton.Sender:
-        return self.container.create_sender(self.conn, endpoint)
+        try:
+            return self.container.create_sender(self.conn, endpoint)
+        except Exception as e:
+            raise BrokerHandlerError(f'{str(e)}')
 
     def _create_receiver(self, endpoint: str) -> proton.Receiver:
-        return self.container.create_receiver(self.conn, endpoint)
+        try:
+            return self.container.create_receiver(self.conn, endpoint)
+        except Exception as e:
+            raise BrokerHandlerError(f'{str(e)}')
 
     @classmethod
     def create_from_config(cls, config: ConfigDict):
