@@ -24,8 +24,7 @@ mandatory configuration settings you need to provide:
 This type of settings involve the host of the broker as well as the TSL configuration needed from a client to connect to
 it. More specifically:
 
-  - `host`: the host of the broker, e.g. localhost
-  - `port`: the port of the broker, e.g. 5672 by default or 5671 for TSL connection
+  - `host`: the host of the broker, e.g. localhost:5672
   - `tls_enabled`: determines whether the client will be connected to the broker via secure connection
   - `cert_db`: the path to the certificate db
   - `cert_file`: the path to the client's certificate
@@ -35,8 +34,7 @@ it. More specifically:
 Example:
 ```yml
 BROKER:
-  host: 'localhost'
-  port: 5671
+  host: 'localhost:5671'
   tls_enabled: true
   cert_db: '/path/to/ca_certificate.pem'
   cert_file: '/path/to/client_certificate.pem'
