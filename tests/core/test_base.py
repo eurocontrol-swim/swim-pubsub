@@ -31,7 +31,7 @@ from unittest import mock
 
 import pytest
 
-from swim_pubsub.core.base import App, _ProtonContainer
+from swim_pubsub.core.base import App#, _ProtonContainer
 from swim_pubsub.core.broker_handlers import BrokerHandler
 from swim_pubsub.core.clients import Client
 from swim_pubsub.core.errors import AppError
@@ -69,7 +69,7 @@ def test_app__before_run__argument_no_callable__raises_AppError(invalid_callable
         assert f'{invalid_callable_argument} is not callable' == str(e)
 
 
-@mock.patch.object(_ProtonContainer, 'run', return_value=None)
+@mock.patch('swim_pubsub.core.base._ProtonContainer.run', return_value=None)
 def test_app__run__before_run_actions_run_before_app_run(mock_protoncontainer):
     handler = mock.Mock()
 
@@ -147,9 +147,6 @@ def test_app__remove_client__client_is_registered_and_removed_properly():
 def test_app__create_from_config():
     config = {
         'BROKER': {},
-        'LOGGING': {
-            'version': 1
-        }
     }
 
     with mock.patch('swim_pubsub.core.utils.yaml_file_to_dict', return_value=config):

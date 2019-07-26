@@ -19,7 +19,7 @@
       </ENTRIES>
     </EXTENSION>
     <option name="_new_keywords" value="&quot;&quot;" />
-    <option name="_new_additionalArguments" value="&quot;--cov\u003dswim_pubsub  --cov-report term-missing&quot;" />
+    <option name="_new_additionalArguments" value="&quot;--cov\u003dswim_pubsub.core --cov\u003dswim_pubsub.publisher --cov\u003dswim_pubsub.subscriber  --cov-report term-missing &quot;" />
     <option name="_new_target" value="&quot;tests&quot;" />
     <option name="_new_targetType" value="&quot;PATH&quot;" />
     <method v="2" />

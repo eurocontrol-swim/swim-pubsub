@@ -171,6 +171,7 @@ class App(_ProtonContainer):
         app.config = config
 
         # configure logging
-        logging.config.dictConfig(app.config['LOGGING'])
+        if 'LOGGING' in app.config:
+            logging.config.dictConfig(app.config['LOGGING'])
 
         return app
