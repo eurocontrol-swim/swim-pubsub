@@ -28,11 +28,11 @@ http://opensource.org/licenses/BSD-3-Clause
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
 import logging
-from typing import Optional, Dict, Tuple, Callable
+from typing import Dict, Tuple, Callable
 
 import proton
 
-from swim_pubsub.core.broker_handlers import BrokerHandler
+from swim_pubsub.core.broker_handlers import BrokerHandler, Connector
 from swim_pubsub.core.errors import AppError, BrokerHandlerError
 
 __author__ = "EUROCONTROL (SWIM)"
@@ -43,15 +43,14 @@ _logger = logging.getLogger(__name__)
 
 class SubscriberBrokerHandler(BrokerHandler):
 
-    def __init__(self, host: str, ssl_domain: Optional[proton.SSLDomain] = None) -> None:
+    def __init__(self, connector: Connector) -> None:
         """
         An implementation of a broker client that is supposed to act as subscriber. It subscribes to queues of the
         broker by creating instances of `proton.Receiver` for each one of them.
 
-        :param host: host of the broker
-        :param ssl_domain: proton SSLDomain for accessing the broker via TSL (SSL)
+        :param connector: takes care of the connection .i.e TSL, SASL etc
         """
-        BrokerHandler.__init__(self, host, ssl_domain)
+        BrokerHandler.__init__(self, connector)
 
         # keep track of all the queues by receiver
         self.receivers: Dict[proton.Receiver, Tuple[str, Callable]] = {}

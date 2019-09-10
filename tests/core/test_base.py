@@ -31,8 +31,8 @@ from unittest import mock
 
 import pytest
 
-from swim_pubsub.core.base import App#, _ProtonContainer
-from swim_pubsub.core.broker_handlers import BrokerHandler
+from swim_pubsub.core.base import App
+from swim_pubsub.core.broker_handlers import BrokerHandler, Connector
 from swim_pubsub.core.clients import Client
 from swim_pubsub.core.errors import AppError
 
@@ -146,14 +146,13 @@ def test_app__remove_client__client_is_registered_and_removed_properly():
 
 def test_app__create_from_config():
     config = {
-        'BROKER': {},
+        'BROKER': {
+            'host': 'host'
+        },
     }
 
     with mock.patch('swim_pubsub.core.utils.yaml_file_to_dict', return_value=config):
-        broker_handler = BrokerHandler('host')
-        BrokerHandler.create_from_config = mock.Mock(return_value=broker_handler)
-
         app = App._create_from_config('config_file', broker_handler_class=BrokerHandler)
 
-        assert broker_handler == app._handler
+        assert isinstance(app._handler, BrokerHandler)
         assert config == app.config

@@ -46,7 +46,7 @@ def test__create_receiver(caplog):
     queue = uuid.uuid4().hex
     callback = mock.Mock()
 
-    handler = SubscriberBrokerHandler('host')
+    handler = SubscriberBrokerHandler(mock.Mock())
     handler._create_receiver = mock.Mock(return_value=receiver)
 
     handler.create_receiver(queue, callback)
@@ -63,7 +63,7 @@ def test_remove_receiver__receiver_not_found__raises_BrokerHandlerError(caplog):
 
     queue = uuid.uuid4().hex
 
-    handler = SubscriberBrokerHandler('host')
+    handler = SubscriberBrokerHandler(mock.Mock())
     handler._get_receiver_by_queue = mock.Mock(return_value=None)
 
     with pytest.raises(BrokerHandlerError) as e:
@@ -79,7 +79,7 @@ def test_remove_receiver__no_errors(caplog):
     queue = uuid.uuid4().hex
     callback = mock.Mock()
 
-    handler = SubscriberBrokerHandler('host')
+    handler = SubscriberBrokerHandler(mock.Mock())
     handler._get_receiver_by_queue = mock.Mock(return_value=receiver)
 
     handler.receivers[receiver] = (queue, callback)
@@ -102,7 +102,7 @@ def test_on_message__callback_raises_AppError__error_is_logged(caplog):
     event.receiver = receiver
     event.message = 'message'
 
-    handler = SubscriberBrokerHandler('host')
+    handler = SubscriberBrokerHandler(mock.Mock())
     handler.receivers[receiver] = (queue, callback)
 
     handler.on_message(event)

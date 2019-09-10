@@ -34,6 +34,7 @@ from typing import Optional
 
 import proton
 from proton._handlers import MessagingHandler
+from proton._reactor import Container
 
 from swim_pubsub.core import ConfigDict
 from swim_pubsub.core import utils
@@ -44,30 +45,87 @@ __author__ = "EUROCONTROL (SWIM)"
 _logger = logging.getLogger(__name__)
 
 
+class Connector:
+    protocol = 'amqp'
+
+    def __init__(self, host: str) -> None:
+        """
+        Handles the connection to a broker without authentication
+        :param host:
+        """
+        if host is None:
+            raise ValueError('no host was provided')
+
+        self.host = host
+        self.url = f"{self.protocol}://{self.host}"
+
+    def connect(self, container: Container) -> proton.Connection:
+        return container.connect(self.url)
+
+
+class TLSConnector(Connector):
+    protocol = 'amqps'
+
+    def __init__(self, host: str, cert_db: str, cert_file: str, cert_key: str, cert_password: str) -> None:
+        """
+        Handles the connection to a broker via the TSL layer
+        :param host:
+        :param cert_db:
+        :param cert_file:
+        :param cert_key:
+        :param cert_password:
+        """
+        super().__init__(host)
+        self._ssl_domain = utils.create_ssl_domain(cert_db, cert_file, cert_key, cert_password)
+
+    def connect(self, container: Container) -> proton.Connection:
+        return container.connect(self.url, self._ssl_domain)
+
+
+class SASLConnector(Connector):
+    protocol = 'amqps'
+
+    def __init__(self, host, cert_db: str, user: str, password: str, allowed_mechs: str = 'PLAIN') -> None:
+        """
+        Handles the connection to a broker via the SASL layer
+
+        :param host:
+        :param cert_db:
+        :param user:
+        :param password:
+        :param allowed_mechs:
+        """
+        super().__init__(host)
+        self._user = user
+        self._password = password
+        self._allowed_mechs = allowed_mechs
+        self._ssl_domain = utils.create_ssl_domain(cert_db)
+
+    def connect(self, container: Container) -> proton.Connection:
+        return container.connect(self.url,
+                                 ssl_domain=self._ssl_domain,
+                                 sasl_enabled=True,
+                                 allowed_mechs=self._allowed_mechs,
+                                 user=self._user,
+                                 password=self._password)
+
+
 class BrokerHandler(MessagingHandler):
 
-    def __init__(self, host: str, ssl_domain: Optional[proton.SSLDomain] = None):
+    def __init__(self, connector: Connector) -> None:
         """
         Base class acting a MessagingHandler to a `proton.Container`. Any custom handler should inherit from this class.
 
-        :param host: host of the broker
-        :param ssl_domain: proton SSLDomain for accessing the broker via TSL (SSL)
+        :param connector: takes care of the connection .i.e TSL, SASL etc
         """
         MessagingHandler.__init__(self)
 
-        self._host = host
-        self.ssl_domain = ssl_domain
+        self.connector = connector
         self.started = False
         self.container = None
         self.conn = None
 
-    @property
-    def host(self) -> str:
-        protocol = "amqps" if self.ssl_domain else "amqp"
-
-        return f"{protocol}://{self._host}"
-
-    def  on_start(self, event: proton.Event):
+    def on_start(self, event: proton.Event):
         """
         Is triggered upon running the `proton.Container` that uses this handler. It creates a connection to the broker
         and can be overridden for further startup functionality.
@@ -75,9 +133,9 @@ class BrokerHandler(MessagingHandler):
         :param event:
         """
         self.container = event.container
-        self.conn = self.container.connect(self.host, ssl_domain=self.ssl_domain)
+        self.conn = self.connector.connect(self.container)
         self.started = True
-        _logger.info(f'Connected to broker @ {self.host}')
+        _logger.info(f'Connected to broker @ {self.connector.url}')
 
     def _create_sender(self, endpoint: str) -> proton.Sender:
         try:
@@ -92,6 +150,37 @@ class BrokerHandler(MessagingHandler):
             raise BrokerHandlerError(f'{str(e)}')
 
     @classmethod
+    def create(cls,
+               host: Optional[str] = None,
+               cert_db: Optional[str] = None,
+               cert_file: Optional[str] = None,
+               cert_key: Optional[str] = None,
+               cert_password: Optional[str] = None,
+               sasl_user: Optional[str] = None,
+               sasl_password: Optional[str] = None,
+               allowed_mechs: Optional[str] = None):
+        """
+
+        :param host:
+        :param cert_db:
+        :param cert_file:
+        :param cert_key:
+        :param cert_password:
+        :param sasl_user:
+        :param sasl_password:
+        :param allowed_mechs:
+        :return:
+        """
+        if cert_db and cert_file and cert_key and cert_password:
+            connector = TLSConnector(host, cert_db, cert_file, cert_key, cert_password)
+        elif cert_db and sasl_user and sasl_password:
+            connector = SASLConnector(host, cert_db, sasl_user, sasl_password, allowed_mechs)
+        else:
+            connector = Connector(host)
+
+        return cls(connector=connector)
+
+    @classmethod
     def create_from_config(cls, config: ConfigDict):
         """
         Factory method for creating an instance from config values
@@ -100,11 +189,4 @@ class BrokerHandler(MessagingHandler):
         :return: BrokerHandler
         """
 
-        ssl_domain = utils.get_ssl_domain(
-            certificate_db=config['cert_db'],
-            cert_file=config['cert_file'],
-            cert_key=config['cert_key'],
-            password=config['cert_password']
-        ) if config['tls_enabled'] else None
-
-        return cls(host=config['host'], ssl_domain=ssl_domain)
+        return cls.create(**config)

@@ -41,7 +41,7 @@ __author__ = "EUROCONTROL (SWIM)"
 def test_add_topic_group__handler_is_started__logs_message_and_returns(caplog):
     caplog.set_level(logging.DEBUG)
 
-    handler = PublisherBrokerHandler('host')
+    handler = PublisherBrokerHandler(mock.Mock())
     handler.started = mock.Mock(return_value=True)
 
     topic_group = TopicGroup(name='group', interval_in_sec=5)
@@ -55,7 +55,7 @@ def test_add_topic_group__handler_is_started__logs_message_and_returns(caplog):
 
 
 def test_add_topic_group__handler_is_not_started__topic_group_is_added(caplog):
-    handler = PublisherBrokerHandler('host')
+    handler = PublisherBrokerHandler(mock.Mock())
 
     topic_group = TopicGroup(name='group', interval_in_sec=5)
 
@@ -66,7 +66,7 @@ def test_add_topic_group__handler_is_not_started__topic_group_is_added(caplog):
 
 
 def test_schedule_topic_group():
-    handler = PublisherBrokerHandler('host')
+    handler = PublisherBrokerHandler(mock.Mock())
     handler.container = mock.Mock()
     handler.container.schedule = mock.Mock()
 
@@ -82,7 +82,7 @@ def test_schedule_topic_group():
 def test_on_start__create_sender_error__logs_error_and_returns(caplog):
     caplog.set_level(logging.DEBUG)
 
-    handler = PublisherBrokerHandler('host')
+    handler = PublisherBrokerHandler(mock.Mock())
     handler._create_sender = mock.Mock(side_effect=BrokerHandlerError('proton error'))
     handler._schedule_topic_group = mock.Mock()
 
@@ -99,7 +99,7 @@ def test_on_start__no_errors():
     sender = mock.Mock()
     topic_group = TopicGroup(name='group', interval_in_sec=5)
 
-    handler = PublisherBrokerHandler('host')
+    handler = PublisherBrokerHandler(mock.Mock())
     handler._create_sender = mock.Mock(return_value=sender)
     handler._schedule_topic_group = mock.Mock()
     handler.add_topic_group(topic_group)

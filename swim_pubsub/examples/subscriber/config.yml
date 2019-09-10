@@ -27,12 +27,10 @@ LOGGING:
       level: INFO
 
 BROKER:
-  host: 'localhost:5672'
-  tls_enabled: false
-  cert_db: '/home/alex/certs/ca_certificate.pem'
-  cert_file: '/home/alex/certs/client_certificate.pem'
-  cert_key: '/home/alex/certs/client_key.pem'
-  cert_password: 'swim-ti'
+  host: 'localhost:5671'
+  cert_db: '/secrets/rabbitmq/ca_certificate.pem'
+  sasl_user: 'ny-consumer'
+  sasl_password: 'ny'
 
 SUBSCRIPTION-MANAGER:
   host: 'localhost:8080'

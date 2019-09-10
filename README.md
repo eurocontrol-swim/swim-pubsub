@@ -24,23 +24,33 @@ mandatory configuration settings you need to provide:
 This type of settings involve the host of the broker as well as the TSL configuration needed from a client to connect to
 it. More specifically:
 
-  - `host`: the host of the broker, e.g. localhost:5672
-  - `tls_enabled`: determines whether the client will be connected to the broker via secure connection
+  - `host`: the host of the broker, e.g. localhost:5671
   - `cert_db`: the path to the certificate db
   - `cert_file`: the path to the client's certificate
   - `cert_key`: the path to the client's key
   - `cert_password`: the client's password
+  - `sasl_user`: the broker user to be used for SASL authentication
+  - `sasl_password`: the broker user's password to be used for SASL authentication
   
 Example:
 ```yml
 BROKER:
   host: 'localhost:5671'
-  tls_enabled: true
   cert_db: '/path/to/ca_certificate.pem'
   cert_file: '/path/to/client_certificate.pem'
   cert_key: '/path/to/client_key.pem'
   cert_password: 'mysecurepassword'
+  sasl_user: 'mysasluser'
+  sasl_password: 'mysaslpassword'
 ```
+
+Below are the available connection policies which take effect according to specific combinations of the above configuration 
+settings with the following order:
+
+  - **TLS**: it takes place when `host`, `cert_db`, `cert_file` and `cert_key` are present. 
+  - **SASL**: it takes place when `host`, `cert_db`, `sasl_user` and `sasl_password` are present. 
+  - **Unauthenticated**: if only the `host` is present the client will try to connect without authentication. Of course 
+  the success of it will also depend on whether the given port is open by the broker.
  
 ### Subscription Manager
 This type of settings involve parameters needed to connect to the Subscription Manager server. More specifically:

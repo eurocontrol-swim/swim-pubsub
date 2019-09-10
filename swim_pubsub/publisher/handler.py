@@ -28,11 +28,10 @@ http://opensource.org/licenses/BSD-3-Clause
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
 import logging
-from typing import Optional
 
 import proton
 
-from swim_pubsub.core.broker_handlers import BrokerHandler
+from swim_pubsub.core.broker_handlers import BrokerHandler, Connector
 from swim_pubsub.core.errors import BrokerHandlerError
 from swim_pubsub.core.topics import TopicGroup
 
@@ -44,15 +43,14 @@ _logger = logging.getLogger(__name__)
 
 class PublisherBrokerHandler(BrokerHandler):
 
-    def __init__(self, host: str, ssl_domain: Optional[proton.SSLDomain] = None) -> None:
+    def __init__(self, connector: Connector) -> None:
         """
         An implementation of a broker client that is supposed to act as a publisher. It keeps a list of `TopicGroup`
         instances and creates a single `proton.Sender` which assigns to each of them.
 
-        :param host: host of the broker
-        :param ssl_domain: proton SSLDomain for accessing the broker via TSL (SSL)
+        :param connector: takes care of the connection .i.e TSL, SASL etc
         """
-        BrokerHandler.__init__(self, host, ssl_domain)
+        BrokerHandler.__init__(self, connector)
 
         self.topic_groups = []
         self.endpoint = '/exchange/amq.topic'

@@ -32,7 +32,6 @@ import uuid
 from unittest import mock
 
 import pytest
-from rest_client.errors import APIError
 from subscription_manager_client.models import Topic
 
 from swim_pubsub.core.errors import SubscriptionManagerServiceError, BrokerHandlerError

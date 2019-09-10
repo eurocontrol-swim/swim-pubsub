@@ -31,40 +31,136 @@ from unittest import mock
 
 import pytest
 
-from swim_pubsub.core.broker_handlers import BrokerHandler
+from swim_pubsub.core.broker_handlers import BrokerHandler, Connector, TLSConnector, SASLConnector
 from swim_pubsub.core.errors import BrokerHandlerError
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-@pytest.mark.parametrize('host, ssl_domain, expected_host', [
-    ('hostname', mock.Mock(), 'amqps://hostname'),
-    ('hostname', None, 'amqp://hostname')
-])
-def test__broker_handler__host_string(host, ssl_domain, expected_host):
-    broker_handler = BrokerHandler(host, ssl_domain)
-
-    assert expected_host == broker_handler.host
+def test__connector__host_is_none__raises_valueerror():
+    with pytest.raises(ValueError) as e:
+        Connector(host=None)
+        assert 'no host was provided' == e.value
 
 
-def test_broker_handler__create_from_config():
+def test__connector__url():
+    hostname = 'hostname'
+    expected_url = 'amqp://hostname'
+
+    with mock.patch('swim_pubsub.core.utils.create_ssl_domain', return_value=mock.Mock()):
+        connector = Connector(hostname)
+
+        assert expected_url == connector.url
+
+
+def test__tlsconnector__url():
+    hostname = 'hostname'
+    expected_url = 'amqps://hostname'
+
+    with mock.patch('swim_pubsub.core.utils.create_ssl_domain', return_value=mock.Mock()):
+        connector = TLSConnector(hostname, 'cert_db', 'cert_file', 'cert_key', 'cert_password')
+
+        assert expected_url == connector.url
+
+
+def test__saslconnector__url():
+    hostname = 'hostname'
+    expected_url = 'amqps://hostname'
+
+    with mock.patch('swim_pubsub.core.utils.create_ssl_domain', return_value=mock.Mock()):
+        connector = SASLConnector(hostname, 'cert_db', 'cert_file', 'cert_key', 'cert_password')
+
+        assert expected_url == connector.url
+
+
+def test_connector__connect():
+    connector = Connector('host')
+
+    container = mock.Mock()
+    container_connect = mock.Mock()
+    container.connect = container_connect
+
+    connector.connect(container)
+
+    container_connect.assert_called_once_with(connector.url)
+
+
+@mock.patch('swim_pubsub.core.utils.create_ssl_domain', return_value=mock.Mock())
+def test_tlsconnector__connect(mock_create_ssl_domain):
+    connector = TLSConnector('hostname', 'cert_db', 'cert_file', 'cert_key', 'cert_password')
+
+    container = mock.Mock()
+    container_connect = mock.Mock()
+    container.connect = container_connect
+
+    connector.connect(container)
+
+    container_connect.assert_called_once_with(connector.url, mock_create_ssl_domain())
+
+
+@mock.patch('swim_pubsub.core.utils.create_ssl_domain', return_value=mock.Mock())
+def test_saslconnector__connect(mock_create_ssl_domain):
+    connector = SASLConnector('hostname', 'cert_db', 'sasl_user', 'sasl_password')
+
+    container = mock.Mock()
+    container_connect = mock.Mock()
+    container.connect = container_connect
+
+    connector.connect(container)
+
+    container_connect.assert_called_once_with(connector.url,
+                                              ssl_domain=mock_create_ssl_domain(),
+                                              sasl_enabled=True,
+                                              allowed_mechs='PLAIN',
+                                              user='sasl_user',
+                                              password='sasl_password')
+
+
+@mock.patch('swim_pubsub.core.utils.create_ssl_domain', return_value=mock.Mock())
+def test_broker_handler__create_from_config__creates_handler_with_simple_connector(mock_create_ssl_domain):
+    broker_config = {
+        'host': 'hostname'
+    }
+
+    broker_handler = BrokerHandler.create_from_config(broker_config)
+
+    assert isinstance(broker_handler, BrokerHandler)
+    assert isinstance(broker_handler.connector, Connector)
+
+
+def test_broker_handler__create_from_config__creates_handler_with_tls_connector():
     broker_config = {
         'cert_db': 'cert_db',
         'cert_file': 'cert_file',
         'cert_key': 'cert_key',
         'cert_password': 'cert_password',
-        'tls_enabled': True,
         'host': 'hostname'
     }
 
-    with mock.patch('swim_pubsub.core.utils.get_ssl_domain', return_value=mock.Mock()):
+    with mock.patch('swim_pubsub.core.utils.create_ssl_domain', return_value=mock.Mock()):
         broker_handler = BrokerHandler.create_from_config(broker_config)
 
         assert isinstance(broker_handler, BrokerHandler)
+        assert isinstance(broker_handler.connector, TLSConnector)
 
 
-def test_broker_handler__create_receiver_fails__raises_BrokerHAndlerError():
-    broker_handler = BrokerHandler('host')
+def test_broker_handler__create_from_config__creates_handler_with_sasl_connector():
+    broker_config = {
+        'cert_db': 'cert_db',
+        'sasl_user': 'sasl_user',
+        'sasl_password': 'sasl_password',
+        'host': 'hostname'
+    }
+
+    with mock.patch('swim_pubsub.core.utils.create_ssl_domain', return_value=mock.Mock()):
+        broker_handler = BrokerHandler.create_from_config(broker_config)
+
+        assert isinstance(broker_handler, BrokerHandler)
+        assert isinstance(broker_handler.connector, SASLConnector)
+
+
+def test_broker_handler__create_receiver_fails__raises_BrokerHandlerError():
+    broker_handler = BrokerHandler(mock.Mock())
     broker_handler.container = mock.Mock()
     broker_handler.container.create_receiver = mock.Mock(side_effect=Exception('proton error'))
 
@@ -74,7 +170,7 @@ def test_broker_handler__create_receiver_fails__raises_BrokerHAndlerError():
 
 
 def test_broker_handler__create_sender_fails__raises_BrokerHAndlerError():
-    broker_handler = BrokerHandler('host')
+    broker_handler = BrokerHandler(mock.Mock())
     broker_handler.container = mock.Mock()
     broker_handler.container.create_sender = mock.Mock(side_effect=Exception('proton error'))
 

@@ -29,7 +29,7 @@ Details on EUROCONTROL: http://www.eurocontrol.int
 """
 import logging
 from functools import wraps
-from typing import Callable, Union
+from typing import Callable, Union, Optional
 
 import yaml
 from proton import SSLDomain, SSLUnavailable
@@ -58,22 +58,39 @@ def yaml_file_to_dict(filename: str) -> ConfigDict:
     return obj or None
 
 
-def get_ssl_domain(certificate_db: str, cert_file: str, cert_key: str, password: str) -> Union[SSLDomain, None]:
+def _get_ssl_domain(mode: int) -> Union[SSLDomain, None]:
     """
-    Creates an SSLDomain to be passed upon connecting to the broker
-    :param certificate_db: path to certificate DB
-    :param cert_file: path to client certificate
-    :param cert_key: path to client key
-    :param password: password of the client
+
+    :param mode:
     :return:
     """
     try:
-        ssl_domain = SSLDomain(SSLDomain.VERIFY_PEER)
-    except SSLUnavailable:
+        return SSLDomain(mode)
+    except SSLUnavailable as e:
+        _logger.warning(str(e))
         return None
 
-    ssl_domain.set_trusted_ca_db(certificate_db)
-    ssl_domain.set_credentials(cert_file, cert_key, password)
+
+def create_ssl_domain(cert_db: str,
+                      cert_file: Optional[str] = None,
+                      cert_key: Optional[str] = None,
+                      cert_password: Optional[str] = None,
+                      mode: int = SSLDomain.VERIFY_PEER) -> Union[SSLDomain, None]:
+    """
+    Creates an SSLDomain to be passed upon connecting to the broker
+    :param cert_db: path to certificate DB
+    :param cert_file: path to client certificate
+    :param cert_key: path to client key
+    :param cert_password: password of the client
+    :param mode: one of MODE_CLIENT, MODE_SERVER, VERIFY_PEER, VERIFY_PEER_NAME, ANONYMOUS_PEER
+    :return:
+    """
+    ssl_domain = _get_ssl_domain(mode)
+
+    ssl_domain.set_trusted_ca_db(cert_db)
+
+    if cert_file and cert_key and cert_password:
+        ssl_domain.set_credentials(cert_file, cert_key, cert_password)
 
     return ssl_domain
 
