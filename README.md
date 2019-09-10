@@ -105,7 +105,7 @@ More settings can be added and can be eventually be used by the config parameter
 ## Basic Concepts
 
 ### Application (App)
-`swim_pubsub.core.base.App` extends the `proton._ractor.Container` of `qpid-proton` library by adding extra functionality:
+`swim_pubsub.core.base.App` extends the `proton.ractor.Container` of `qpid-proton` library by adding extra functionality:
 
   - it allows the application to keep track of its clients (publishers, subscribers, etc)
   - it allows an application to run in threaded mode. It can be useful in case you need to exploit the app instance 
@@ -118,7 +118,7 @@ has to inherit from `BrokerHandler` (see below). Following you will find relevan
 case.
 
 ### BrokerHandler
-It extends the `proton._reactor.MessagingHandler` which will allow it to interact with the broker via the `qpid-proton`
+It extends the `proton.reactor.MessagingHandler` which will allow it to interact with the broker via the `qpid-proton`
 library using the [AMQP Version 1.0](https://www.amqp.org/resources/specifications) protocol.
 
 ### Client

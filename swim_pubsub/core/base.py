@@ -31,7 +31,7 @@ import logging
 import threading
 from typing import Optional, List, Callable, Type
 
-from proton._reactor import Container
+from proton.reactor import Container
 
 from swim_pubsub.core.clients import Client
 from swim_pubsub.core import ConfigDict

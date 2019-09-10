@@ -33,8 +33,8 @@ import logging
 from typing import Optional
 
 import proton
-from proton._handlers import MessagingHandler
-from proton._reactor import Container
+from proton.handlers import MessagingHandler
+from proton.reactor import Container
 
 from swim_pubsub.core import ConfigDict
 from swim_pubsub.core import utils

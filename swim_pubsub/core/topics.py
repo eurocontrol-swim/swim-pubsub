@@ -31,7 +31,7 @@ import logging
 from typing import Optional, Callable, List
 
 import proton
-from proton._handlers import MessagingHandler
+from proton.handlers import MessagingHandler
 
 from swim_pubsub.core.errors import BrokerHandlerError, AppError
 
