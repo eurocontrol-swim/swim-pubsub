@@ -33,6 +33,7 @@ import logging
 from typing import Optional
 
 import proton
+from proton import SSLDomain
 from proton.handlers import MessagingHandler
 from proton.reactor import Container
 
@@ -76,10 +77,11 @@ class TLSConnector(Connector):
         :param cert_password:
         """
         super().__init__(host)
+
         self._ssl_domain = utils.create_ssl_domain(cert_db, cert_file, cert_key, cert_password)
 
     def connect(self, container: Container) -> proton.Connection:
-        return container.connect(self.url, self._ssl_domain)
+        return container.connect(self.url, ssl_domain=self._ssl_domain)
 
 
 class SASLConnector(Connector):
@@ -132,6 +134,7 @@ class BrokerHandler(MessagingHandler):
 
         :param event:
         """
+
         self.container = event.container
         self.conn = self.connector.connect(self.container)
         self.started = True

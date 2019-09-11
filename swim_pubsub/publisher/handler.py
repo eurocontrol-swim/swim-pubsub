@@ -67,6 +67,7 @@ class PublisherBrokerHandler(BrokerHandler):
 
         try:
             self.sender = self._create_sender(self.endpoint)
+            _logger.debug(f"Created sender {self.sender}")
         except BrokerHandlerError as e:
             _logger.error(f'Error while creating sender: {str(e)}')
             return

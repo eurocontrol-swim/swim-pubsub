@@ -27,7 +27,7 @@ LOGGING:
       level: INFO
 
 BROKER:
-  host: 'localhost:5671'
+  host: '0.0.0.0:5671'
   cert_db: '/secrets/rabbitmq/ca_certificate.pem'
   sasl_user: 'ny-consumer'
   sasl_password: 'ny'
