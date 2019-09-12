@@ -95,7 +95,7 @@ def test_tlsconnector__connect(mock_create_ssl_domain):
 
     connector.connect(container)
 
-    container_connect.assert_called_once_with(connector.url, mock_create_ssl_domain())
+    container_connect.assert_called_once_with(connector.url, ssl_domain=mock_create_ssl_domain())
 
 
 @mock.patch('swim_pubsub.core.utils.create_ssl_domain', return_value=mock.Mock())

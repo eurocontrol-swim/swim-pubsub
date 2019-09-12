@@ -87,6 +87,9 @@ def create_ssl_domain(cert_db: str,
     """
     ssl_domain = _get_ssl_domain(mode)
 
+    if ssl_domain is None:
+        return None
+
     ssl_domain.set_trusted_ca_db(cert_db)
 
     if cert_file and cert_key and cert_password:
