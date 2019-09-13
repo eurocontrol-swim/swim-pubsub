@@ -100,7 +100,7 @@ def test_tlsconnector__connect(mock_create_ssl_domain):
 
 @mock.patch('swim_pubsub.core.utils.create_ssl_domain', return_value=mock.Mock())
 def test_saslconnector__connect(mock_create_ssl_domain):
-    connector = SASLConnector('hostname', 'cert_db', 'sasl_user', 'sasl_password')
+    connector = SASLConnector('hostname', 'cert_db', 'sasl_user', 'sasl_password', 'PLAIN')
 
     container = mock.Mock()
     container_connect = mock.Mock()

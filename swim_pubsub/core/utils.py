@@ -30,7 +30,6 @@ Details on EUROCONTROL: http://www.eurocontrol.int
 import logging
 from functools import wraps
 from typing import Callable, Union, Optional
-
 import yaml
 from proton import SSLDomain, SSLUnavailable
 

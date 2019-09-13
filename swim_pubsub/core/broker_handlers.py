@@ -87,7 +87,7 @@ class TLSConnector(Connector):
 class SASLConnector(Connector):
     protocol = 'amqps'
 
-    def __init__(self, host, cert_db: str, user: str, password: str, allowed_mechs: str = 'PLAIN') -> None:
+    def __init__(self, host, cert_db: str, user: str, password: str, allowed_mechs: str) -> None:
         """
         Handles the connection to a broker via the SASL layer
 
@@ -134,7 +134,6 @@ class BrokerHandler(MessagingHandler):
 
         :param event:
         """
-
         self.container = event.container
         self.conn = self.connector.connect(self.container)
         self.started = True
@@ -161,7 +160,7 @@ class BrokerHandler(MessagingHandler):
                cert_password: Optional[str] = None,
                sasl_user: Optional[str] = None,
                sasl_password: Optional[str] = None,
-               allowed_mechs: Optional[str] = None):
+               allowed_mechs: Optional[str] = 'PLAIN'):
         """
 
         :param host:
