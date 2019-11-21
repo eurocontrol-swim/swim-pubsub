@@ -27,7 +27,9 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
+import logging
 from unittest import mock
+from unittest.mock import Mock
 
 import pytest
 
@@ -177,3 +179,25 @@ def test_broker_handler__create_sender_fails__raises_BrokerHAndlerError():
     with pytest.raises(BrokerHandlerError) as e:
         broker_handler._create_sender('endpoint')
         assert f"proton error" == str(e)
+
+
+def test_broker_handler__on_start(caplog):
+    caplog.set_level(logging.DEBUG)
+
+    connector = Mock()
+    connector.url = "URL"
+    connection = Mock()
+    connector.connect = Mock(return_value=connection)
+    handler = BrokerHandler(connector)
+
+    event = Mock()
+    event.container = Mock()
+
+    handler.on_start(event)
+
+    assert event.container == handler.container
+    assert connection == handler.conn
+    assert handler.started is True
+
+    log_message = caplog.records[0]
+    assert f'Connected to broker @ {handler.connector.url}' == log_message.message

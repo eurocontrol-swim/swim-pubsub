@@ -28,13 +28,14 @@ http://opensource.org/licenses/BSD-3-Clause
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
 import logging
-from typing import Dict
+from typing import Optional, Any, Dict, List, Set
 
 from rest_client.errors import APIError
+from subscription_manager_client.models import Topic as SMTopic
 
 from swim_pubsub.core.clients import Client
 from swim_pubsub.core.errors import ClientError
-from swim_pubsub.core.topics import TopicGroup
+from swim_pubsub.core.topics import TopicType
 from swim_pubsub.publisher.handler import PublisherBrokerHandler
 from swim_pubsub.core.subscription_manager_service import SubscriptionManagerService
 
@@ -58,32 +59,60 @@ class Publisher(Client):
 
         Client.__init__(self, broker_handler, sm_service)
 
-        self.topic_groups_dict: Dict[str, TopicGroup] = {}
+        self.topics_dict: Dict[str, TopicType] = {}
 
-    @property
-    def topic_groups(self):
-        return list(self.topic_groups_dict.values())
-
-    def register_topic_group(self, topic_group: TopicGroup):
+    def register_topic(self, topic: TopicType):
         """
-        Adds the topic group in the local dictionary and in the handler's list
+        - Keeps a reference to the provided topic
+        - Creates the topic in SM
+        - Passes it to the broker handler
+        :param topic:
         """
-        if topic_group.name in self.topic_groups_dict.keys():
-            raise ClientError(f'TopicGroup {topic_group.name} already exists')
+        if topic.id in self.topics_dict:
+            raise ClientError(f"Topic chain with id {topic.id} already exists.")
 
-        self.topic_groups_dict[topic_group.name] = topic_group
+        try:
+            self.sm_service.create_topic(topic_name=topic.id)
+        except APIError as e:
+            if e.status_code == 409:
+                _logger.error(f"Topic {topic.id} already exists in SM")
+            else:
+                raise ClientError(f"Error while creating topic in SM: {str(e)}")
 
-        self.broker_handler.add_topic_group(topic_group)
+        self.topics_dict[topic.id] = topic
 
-    def populate_topics(self):
+        self.broker_handler.add_topic(topic)
+
+    def publish_topic(self, topic_id: str, context: Optional[Any] = None):
         """
-        Registers the topics of each group to the SubscriptionManager. It can be used before starting the corresponding
-        app.
-        """
-        topics_to_populate = [topic_id for topic_group in self.topic_groups for topic_id in topic_group.topic_ids]
+        On demand data publish of the provided topic_id
 
-        for topic in topics_to_populate:
-            try:
-                self.sm_service.create_topic(topic)
-            except APIError as e:
-                _logger.info(f"Error while registering topic: {topic}: {str(e)}")
+        :param topic_id:
+        :param context:
+        """
+        topic = self.topics_dict.get(topic_id)
+
+        if topic is None:
+            raise ClientError(f"Invalid topic id: {topic_id}")
+
+        self.broker_handler.trigger_topic(topic=topic, context=context)
+
+    def sync_sm_topics(self):
+        """
+        Syncs the topics in SM based on the locally registered once:
+            - Topics that exist in SM but not locally will be deleted from SM
+            - Topics that exist locally but not in SM will be created in SM
+        """
+        sm_topics: List[SMTopic] = self.sm_service.get_topics()
+        sm_topics_str: List[str] = [topic.name for topic in sm_topics]
+        local_topics_str: List[str] = [topic.id for topic in self.topics_dict.values()]
+
+        topics_str_to_create: Set[str] = set(local_topics_str) - set(sm_topics_str)
+        topics_str_to_delete: Set[str] = set(sm_topics_str) - set(local_topics_str)
+        topic_to_delete: List[SMTopic] = [topic for topic in sm_topics if topic.name in topics_str_to_delete]
+
+        for topic_name in topics_str_to_create:
+            self.sm_service.create_topic(topic_name=topic_name)
+
+        for topic in topic_to_delete:
+            self.sm_service.delete_topic(topic=topic)

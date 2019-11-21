@@ -28,6 +28,8 @@ http://opensource.org/licenses/BSD-3-Clause
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
 import json
+import logging
+import os
 from datetime import datetime, timedelta
 from functools import partial
 from typing import Any, Optional, List
@@ -37,10 +39,12 @@ from opensky_network_client.opensky_network import OpenskyNetworkClient
 from proton import Message
 from rest_client.errors import APIError
 
-from swim_pubsub.core.topics import TopicGroup
+from swim_pubsub.core.topics.topics import ScheduledTopic, Topic, Pipeline
 from swim_pubsub.publisher import PubApp
 
 __author__ = "EUROCONTROL (SWIM)"
+
+_logger = logging.getLogger(__name__)
 
 
 def _today():
@@ -65,7 +69,7 @@ class OpenSkyNetworkDataHandler:
 
         return result
 
-    def arrivals_today_handler(self, icao24: str, topic_group_data: Optional[Any] = None) -> Message:
+    def arrivals_today_handler(self, icao24: str, context: Optional[Any] = None) -> Message:
         arrivals = self._get_arrivals_today(icao24)
 
         message = Message()
@@ -84,7 +88,7 @@ class OpenSkyNetworkDataHandler:
 
         return result
 
-    def departures_today_handler(self, icao24: str, topic_group_data: Optional[Any] = None) -> Message:
+    def departures_today_handler(self, icao24: str, context: Optional[Any] = None) -> Message:
         departures = self._get_departures_today(icao24)
 
         message = Message()
@@ -94,37 +98,37 @@ class OpenSkyNetworkDataHandler:
         return message
 
 
-if __name__ == '__main__':
+current_dir = os.path.dirname(os.path.realpath(__file__))
+config_file = os.path.join(current_dir, 'config.yml')
+app = PubApp.create_from_config(config_file)
 
-    app = PubApp.create_from_config('config.yml')
+opensky = OpenSkyNetworkDataHandler()
 
-    data_handler = OpenSkyNetworkDataHandler()
+publisher = app.register_publisher('swim-adsb', 'rsdyhdsrhdyh ')
 
-    airports = {
-        'Brussels': 'EBBR',
-        'Amsterdam': 'EHAM',
-        'Paris': 'LFPG',
-        'Berlin': 'EDDB',
-        'Athens': 'LGAV',
-        'Madrid': 'LECU'
-    }
+airports = {
+    'Brussels': 'EBBR',
+    'Amsterdam': 'EHAM',
+    'Paris': 'LFPG',
+    'Berlin': 'EDDB',
+    'Athens': 'LGAV',
+    'Madrid': 'LECU'
+}
 
-    arrivals_topic = TopicGroup('arrivals', 5)
-    departures_topic = TopicGroup('departures', 5)
 
-    for airport, icao24 in airports.items():
-        arrivals_callback = partial(data_handler.arrivals_today_handler, icao24)
-        departures_callback = partial(data_handler.departures_today_handler, icao24)
+# create a new arrivals and a new departures topic per airport and chain it to the respective root
+for city, icao24 in airports.items():
 
-        arrivals_topic.create_topic(topic_id=f"arrivals.{airport.lower()}", callback=arrivals_callback)
-        departures_topic.create_topic(topic_id=f"departures.{airport.lower()}", callback=departures_callback)
+    arrivals_pipeline = Pipeline([partial(opensky.arrivals_today_handler, icao24)])
+    departures_pipeline = Pipeline([partial(opensky.departures_today_handler, icao24)])
 
-    publisher = app.register_publisher('swim-adsb', 'swim-adsb')
-    publisher.register_topic_group(arrivals_topic)
-    publisher.register_topic_group(departures_topic)
+    city_arrivals_topic = Topic(topic_id=f'arrivals.{city}', pipeline=arrivals_pipeline)
+    city_departures_topic = ScheduledTopic(topic_id=f'departures.{city}', pipeline=departures_pipeline,
+                                           interval_in_sec=5)
 
-    @app.before_run
-    def populate_publisher_topics():
-        publisher.populate_topics()
+    # register topics
+    publisher.register_topic(topic=city_arrivals_topic)
+    publisher.register_topic(topic=city_departures_topic)
 
-    app.run()
+
+app.run(threaded=True)

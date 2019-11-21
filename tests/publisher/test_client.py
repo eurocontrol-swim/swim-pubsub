@@ -29,57 +29,187 @@ Details on EUROCONTROL: http://www.eurocontrol.int
 """
 import logging
 from unittest import mock
+from unittest.mock import Mock, call
 
 import pytest
 from rest_client.errors import APIError
+from subscription_manager_client.models import Topic as SMTopic
 
 from swim_pubsub.core.errors import ClientError
-from swim_pubsub.core.topics import TopicGroup
+from swim_pubsub.core.topics.topics import Topic, Pipeline
 from swim_pubsub.publisher import Publisher
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-def test_publisher__register_topic_group__topic_group_already_exists__raises_ClientError():
+def test_publisher__register_topic__topic_already_exists__raises_ClientError():
     broker_handler = mock.Mock()
     sm_service = mock.Mock()
-    topic_group = TopicGroup(name='group', interval_in_sec=5)
+
+    def handler1(context): return "handler1"
+    def handler2(context): return context + "handler2"
+    def handler3(context): return context + "handler3"
+
+    pipeline = Pipeline([handler1, handler2, handler3])
+
+    topic = Topic(topic_id='topic', pipeline=pipeline)
 
     publisher = Publisher(broker_handler, sm_service)
 
-    publisher.topic_groups_dict[topic_group.name] = topic_group
+    publisher.topics_dict[topic.id] = topic
 
     with pytest.raises(ClientError) as e:
-        publisher.register_topic_group(topic_group)
-        assert f'TopicGroup {topic_group.name} already exists' == str(e)
+        publisher.register_topic(topic)
+        assert f"Topic chain with id {topic.id} already exists." == str(e)
 
 
-def test_publisher__register_topic_group__topic_group_does_not_exist_and_is_registered():
-    broker_handler = mock.Mock()
-    sm_service = mock.Mock()
-    topic_group = TopicGroup(name='group', interval_in_sec=5)
-
-    publisher = Publisher(broker_handler, sm_service)
-
-    publisher.register_topic_group(topic_group)
-
-    assert topic_group in publisher.topic_groups
-
-
-def test_publisher__populate_topics__sm_api_error__logs_error(caplog):
-    caplog.set_level(logging.INFO)
+def test_publisher__register_topic__sm_error_409__logs_message(caplog):
+    caplog.set_level(logging.DEBUG)
 
     broker_handler = mock.Mock()
     sm_service = mock.Mock()
-    topic_group = TopicGroup(name='group', interval_in_sec=5)
-    topic_group.create_topic('topic', callback=mock.Mock())
+    sm_service.create_topic = Mock(side_effect=APIError(status_code=409, detail="error"))
+
+    def handler1(context): return "handler1"
+    def handler2(context): return context + "handler2"
+    def handler3(context): return context + "handler3"
+
+    pipeline = Pipeline([handler1, handler2, handler3])
+
+    topic = Topic(topic_id='topic', pipeline=pipeline)
 
     publisher = Publisher(broker_handler, sm_service)
-    publisher.register_topic_group(topic_group)
 
-    publisher.sm_service.create_topic = mock.Mock(side_effect=APIError('server error', status_code=500))
-
-    publisher.populate_topics()
+    publisher.register_topic(topic)
 
     log_message = caplog.records[0]
-    assert f"Error while registering topic: topic: server error"
+    assert f"Topic {topic.id} already exists in SM" == log_message.message
+
+    assert topic in publisher.topics_dict.values()
+
+
+def test_publisher__register_topic__sm_error__raises_ClientError():
+    broker_handler = mock.Mock()
+    sm_service = mock.Mock()
+    sm_service.create_topic = Mock(side_effect=APIError(status_code=500, detail="error"))
+
+    def handler1(context): return "handler1"
+    def handler2(context): return context + "handler2"
+    def handler3(context): return context + "handler3"
+
+    pipeline = Pipeline([handler1, handler2, handler3])
+
+    topic = Topic(topic_id='topic', pipeline=pipeline)
+
+    publisher = Publisher(broker_handler, sm_service)
+
+    with pytest.raises(ClientError) as e:
+        publisher.register_topic(topic)
+        assert f"[500] - error" == str(e)
+
+    assert topic not in publisher.topics_dict.values()
+
+
+def test_publisher__register_topic__topic_does_not_exist_and_is_registered_in_broker_handler_and_sm():
+    broker_handler = mock.Mock()
+    sm_service = mock.Mock()
+
+    mock_sm_create_topic = Mock()
+    sm_service.create_topic = mock_sm_create_topic
+
+    def handler1(context): return "handler1"
+    def handler2(context): return context + "handler2"
+    def handler3(context): return context + "handler3"
+
+    pipeline = Pipeline([handler1, handler2, handler3])
+
+    topic = Topic(topic_id='topic', pipeline=pipeline)
+
+    publisher = Publisher(broker_handler, sm_service)
+
+    publisher.register_topic(topic)
+
+    assert topic in publisher.topics_dict.values()
+    mock_sm_create_topic.assert_called_once_with(topic_name=topic.id)
+
+
+def test_publish_topic__topic_id_does_not_exist__raises_clienterror():
+
+    broker_handler = mock.Mock()
+    sm_service = mock.Mock()
+
+    publisher = Publisher(broker_handler, sm_service)
+
+    with pytest.raises(ClientError) as e:
+        publisher.publish_topic('invalid_topic_id')
+        assert f"Invalid topic id: invalid_topic_id" == str(e)
+
+
+def test_publish_topic__topic_exists_and_broker_handler_is_called():
+    broker_handler = mock.Mock()
+    sm_service = mock.Mock()
+
+    def handler1(context): return "handler1"
+    def handler2(context): return context + "handler2"
+    def handler3(context): return context + "handler3"
+
+    pipeline = Pipeline([handler1, handler2, handler3])
+
+    topic = Topic(topic_id='topic', pipeline=pipeline)
+
+    publisher = Publisher(broker_handler, sm_service)
+
+    publisher.register_topic(topic)
+
+    mock_trigger_topic = Mock()
+
+    publisher.broker_handler.trigger_topic = mock_trigger_topic
+
+    context = {}
+    publisher.publish_topic(topic.id, context=context)
+
+    mock_trigger_topic.assert_called_once_with(topic=topic, context=context)
+
+
+def test_publisher__sync_topics():
+
+    broker_handler = mock.Mock()
+    sm_service = mock.Mock()
+
+    mock_sm_create_topic = Mock()
+    sm_service.create_topic = mock_sm_create_topic
+
+    mock_sm_delete_topic = Mock()
+    sm_service.delete_topic = mock_sm_delete_topic
+
+    def handler1(context): return "handler1"
+    def handler2(context): return context + "handler2"
+    def handler3(context): return context + "handler3"
+
+    topic1 = Topic(topic_id='topic1', pipeline=Pipeline([handler1]))
+    topic2 = Topic(topic_id='topic2', pipeline=Pipeline([handler2]))
+    topic3 = Topic(topic_id='topic3', pipeline=Pipeline([handler3]))
+
+    publisher = Publisher(broker_handler, sm_service)
+
+    # register topics but not all of them are saved in SM
+    publisher.register_topic(topic=topic1)
+    publisher.topics_dict[topic2.id] = topic2
+    publisher.topics_dict[topic3.id] = topic3
+
+    mock_sm_create_topic.assert_called_once_with(topic_name=topic1.id)
+
+    sm_topic1 = SMTopic(id=1, name="topic1")
+    sm_topic4 = SMTopic(id=4, name="topic4")
+    mock_sm_get_topics = Mock(return_value=[sm_topic1, sm_topic4])
+    sm_service.get_topics = mock_sm_get_topics
+
+    publisher.sync_sm_topics()
+
+    # sm_topic4 was deleted because it is not in the current local list of topics
+    mock_sm_delete_topic.assert_called_once_with(topic=sm_topic4)
+
+    # topic1 was created during topic registration and topic2, topic3 were created during sync
+    assert 3 == mock_sm_create_topic.call_count
+    for c in [call(topic_name='topic1'), call(topic_name='topic2'), call(topic_name='topic3')]:
+        assert c in mock_sm_create_topic.mock_calls

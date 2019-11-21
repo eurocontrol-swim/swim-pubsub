@@ -41,23 +41,20 @@ from swim_pubsub.core.subscription_manager_service import SubscriptionManagerSer
 __author__ = "EUROCONTROL (SWIM)"
 
 
-@pytest.mark.parametrize('sm_topics, expected_topics', [
-    (
-        [Topic('topic1'), Topic('topic2'), Topic('topic3')],
-        ['topic1', 'topic2', 'topic3']
-    )
+@pytest.mark.parametrize('sm_topics', [
+    [Topic('topic1'), Topic('topic2'), Topic('topic3')]
 ])
-def test_get_topics(sm_topics, expected_topics):
+def test_get_topics(sm_topics):
     sm_client = SubscriptionManagerClient(mock.Mock())
 
     sm_client.get_topics = mock.Mock(return_value=sm_topics)
 
     sm_service = SubscriptionManagerService(sm_client)
 
-    assert expected_topics == sm_service.get_topics()
+    assert sm_topics == sm_service.get_topics()
 
 
-def test_post_topic():
+def test_create_topic():
     sm_client = SubscriptionManagerClient(mock.Mock())
 
     sm_client.post_topic = mock.Mock()
@@ -69,6 +66,21 @@ def test_post_topic():
     called_topic = sm_client.post_topic.call_args[0][0]
 
     assert called_topic.name == 'topic_name'
+
+
+def test_delete_topic():
+    sm_client = SubscriptionManagerClient(mock.Mock())
+
+    mock_delete_topic_by_id = mock.Mock()
+    sm_client.delete_topic_by_id = mock_delete_topic_by_id
+
+    sm_service = SubscriptionManagerService(sm_client)
+
+    topic = Topic(name='topic', id=1)
+
+    sm_service.delete_topic(topic)
+
+    mock_delete_topic_by_id.assert_called_once_with(topic_id=topic.id)
 
 
 def test_subscribe__topic_name_is_not_registered_in_sm__raises_SubscriptionManagerServiceError():
@@ -97,7 +109,7 @@ def test_subscribe__sm_api_error__raises_SubscriptionManagerServiceError():
 
 
 def test_subscribe__no_errors__returns_subscription_queue():
-    topic = Topic(name='topic', id=1)
+    topic = Topic(name='topics', id=1)
 
     sm_client = SubscriptionManagerClient(mock.Mock())
 
@@ -109,7 +121,7 @@ def test_subscribe__no_errors__returns_subscription_queue():
 
     sm_client.post_subscription = mock.Mock(return_value=subscription)
 
-    queue = sm_service.subscribe('topic')
+    queue = sm_service.subscribe('topics')
 
     assert subscription.queue == queue
 

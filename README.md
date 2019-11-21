@@ -1,4 +1,4 @@
-# SWIM PubSub: Publish/Subscribe mini framework 1.4.7
+# SWIM PubSub: Publish/Subscribe mini framework 1.5.0
 
 SWIM PubSub implements the publish-subscribe messaging pattern. It is based on the python library 
 [qpid-proton](https://github.com/apache/qpid-proton/tree/master/python) which extends and can be used to create
@@ -126,12 +126,15 @@ It represents a user of an App (publisher, subscriber or both). Upon instantiati
 handler of its app (for sending/receiving data to/from the broker) as well as a `SubscriptionManagerService` object (for
 managing their topics and subscriptions in the Subscription Manager).
 
-### TopicGroup
-It represents a generic type of messaging data that can be split into sub types (topics) and routed in the broke
+### Pipeline
+Is a collection of handlers (callables) to be run in a pipeline mode and generate the data of a topic
 
 ### Topic
-It represents a sub type of a TopicGroup that takes care of routing its data in the broker which eventually will be 
-consumed from a dedicated subscriber via a dedicated queue.
+It represents the topic to be routed in the broker and it handles its data generation via its pipeline.
+Its data generation can be triggered on demand.
+
+### ScheduledTopic
+It is a topic but it can also schedule its data generation and publishing in interval periods.
 
 ### Subscription Manager Service
 It wraps up the functionality of the Subscription Manager and is used by a `Client` in order to access it for topic
@@ -159,59 +162,105 @@ example demonstrates a simple example of a publisher. It also assumes that a pro
 contents in accordance to the above rules:
 
 ```python
+import os
 import random
 import json
 
 from proton import Message
 
-from swim_pubsub.core.topics import TopicGroup
+from swim_pubsub.core.topics.topics import Topic, ScheduledTopic, Pipeline
 from swim_pubsub.publisher import PubApp
 
-# callbacks
-def random_integers():
+
+# handlers
+def random_integers(context=None):
     return [random.randrange(100) for _ in range(100)]
 
-def even_integers(topic_group_data):
-    data = [num for num in topic_group_data if num % 2 == 0]
-    
-    message = Message()
-    message.content_type = 'application/json'
-    message.body = json.dumps(data)
-    
-    return message
 
-def odd_integers(topic_group_data):
-    data = [num for num in topic_group_data if num % 2 == 1]
+def even_integers(context=None):
+    data = [num for num in context if num % 2 == 0]
 
     message = Message()
     message.content_type = 'application/json'
     message.body = json.dumps(data)
-    
+
     return message
-    
+
+
+def odd_integers(context=None):
+    data = [num for num in context if num % 2 == 1]
+
+    message = Message()
+    message.content_type = 'application/json'
+    message.body = json.dumps(data)
+
+    return message
+
+
 # create topics
-integers = TopicGroup(name='integers', interval_in_sec=5, callback=random_integers)
-integers.create_topic(id="integers.even", callback=even_integers)
-integers.create_topic(id="integers.odd", callback=odd_integers)
+even_pipeline = Pipeline([random_integers, even_integers])
+odd_pipeline = Pipeline([random_integers, odd_integers])
+
+even_topic = Topic('integers.even', pipeline=even_pipeline)
+odd_topic = ScheduledTopic('integers.odd', pipeline=odd_pipeline, interval_in_sec=5)
 
 # create app
-app = PubApp.create_from_config('config.yml')
+current_dir = os.path.dirname(os.path.realpath(__file__))
+config_file = os.path.join(current_dir, 'config.yml')
+app = PubApp.create_from_config(config_file)
 
-# create publisher, the below credentials should belong to a valid Subscription Manager user 
+# create publisher, the below credentials should belong to a valid Subscription Manager user
 publisher = app.register_publisher(username='test', password='test')
 
-# register the topic group to the publisher
-publisher.register_topic_group(integers)
+# register topics
 
-# run the app (one way)
+# the 'integers.even' topic can be triggered lated on demand
+publisher.register_topic(even_topic)
+
+# the 'integers.odd' topic will be triggered every 5 seconds
+publisher.register_topic(odd_topic)
+```
+
+##### Run in foreground
+```python
+
 try:
     app.run()
 except KeyboardInterrupt:
     pass
+```
     
-# run the app (another way)
+##### Run in the background
+If the app runs in the background the publisher the publisher can publish topics on demand
+```python
 app.run(threaded=True)
 
+publisher.publish_topic('integers.odd')
+publisher.publish_topic('integers.even')
+```
+A typical log output would be similar to the following:
+```shell script
+2019-11-22 12:11:20,120 - swim_pubsub.core.broker_handlers - INFO - Connected to broker @ amqps://0.0.0.0:5671
+2019-11-22 12:11:20,120 - swim_pubsub.publisher.handler - DEBUG - Created sender <proton._endpoints.Sender 0x7f0d32b90490 ~ 0x7f0d1c18bf10>
+2019-11-22 12:11:25,122 - swim_pubsub.core.topics.topics - INFO - Sending message for scheduled topic integers.odd
+2019-11-22 12:11:25,122 - swim_pubsub.publisher.handler - INFO - Sent message Message(priority=4, body='[51, 85, 29, 21, 37, 3, 53, 87, 71, 41, 23, 1, 7...
+2019-11-22 12:11:30,124 - swim_pubsub.core.topics.topics - INFO - Sending message for scheduled topic integers.odd
+2019-11-22 12:11:30,124 - swim_pubsub.publisher.handler - INFO - Sent message Message(priority=4, body='[37, 13, 79, 45, 47, 25, 99, 29, 9, 81, 3, 13, 6...
+2019-11-22 12:11:35,126 - swim_pubsub.core.topics.topics - INFO - Sending message for scheduled topic integers.odd
+2019-11-22 12:11:35,126 - swim_pubsub.publisher.handler - INFO - Sent message Message(priority=4, body='[49, 79, 35, 27, 73, 5, 9, 97, 63, 17, 25, 79, 4...
+2019-11-22 12:11:40,127 - swim_pubsub.core.topics.topics - INFO - Sending message for scheduled topic integers.odd
+2019-11-22 12:11:40,127 - swim_pubsub.publisher.handler - INFO - Sent message Message(priority=4, body='[91, 85, 5, 3, 81, 23, 93, 7, 89, 3, 63, 31, 9, ...
+2019-11-22 12:11:45,130 - swim_pubsub.core.topics.topics - INFO - Sending message for scheduled topic integers.odd
+2019-11-22 12:11:45,131 - swim_pubsub.publisher.handler - INFO - Sent message Message(priority=4, body='[93, 67, 19, 45, 73, 41, 19, 65, 59, 53, 11, 55,...
+2019-11-22 12:11:50,132 - swim_pubsub.core.topics.topics - INFO - Sending message for scheduled topic integers.odd
+2019-11-22 12:11:50,133 - swim_pubsub.publisher.handler - INFO - Sent message Message(priority=4, body='[67, 31, 47, 19, 37, 63, 39, 73, 39, 13, 11, 9, ...
+2019-11-22 12:11:55,133 - swim_pubsub.core.topics.topics - INFO - Sending message for scheduled topic integers.odd
+2019-11-22 12:11:55,133 - swim_pubsub.publisher.handler - INFO - Sent message Message(priority=4, body='[91, 9, 61, 67, 83, 45, 57, 67, 59, 99, 31, 79, ...
+>>> publisher.publish_topic('integers.even')
+2019-11-22 12:11:57,474 - swim_pubsub.publisher.handler - INFO - Sending message for topic integers.even
+2019-11-22 12:11:57,474 - swim_pubsub.publisher.handler - INFO - Sent message Message(priority=4, body='[38, 60, 12, 52, 84, 80, 26, 2, 58, 52, 24, 92, ...
+2019-11-22 12:12:00,136 - swim_pubsub.core.topics.topics - INFO - Sending message for scheduled topic integers.odd
+2019-11-22 12:12:00,136 - swim_pubsub.publisher.handler - INFO - Sent message Message(priority=4, body='[99, 31, 91, 91, 87, 17, 5, 61, 51, 79, 47, 97, ...
 ```
 
 The above code will create two different flows of data (topics) in the broker identified by their id. Every 5 seconds,

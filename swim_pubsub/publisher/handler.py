@@ -28,12 +28,15 @@ http://opensource.org/licenses/BSD-3-Clause
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
 import logging
+from typing import Union, Any, Optional, List
 
 import proton
 
 from swim_pubsub.core.broker_handlers import BrokerHandler, Connector
 from swim_pubsub.core.errors import BrokerHandlerError
-from swim_pubsub.core.topics import TopicGroup
+from swim_pubsub.core.topics import TopicType
+from swim_pubsub.core.topics.topics import ScheduledTopic, PipelineError
+from swim_pubsub.core.topics.utils import truncate_message
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -52,46 +55,86 @@ class PublisherBrokerHandler(BrokerHandler):
         """
         BrokerHandler.__init__(self, connector)
 
-        self.topic_groups = []
-        self.endpoint = '/exchange/amq.topic'
-        self.sender = None
+        self.endpoint: str = '/exchange/amq.topic'
+        self._sender: Optional[proton.Sender] = None
+        self.topics: List[TopicType] = []
 
     def on_start(self, event: proton.Event) -> None:
         """
-        Is triggered upon running the `proton.Container` that uses this handler.
+        Is triggered upon running the `proton.Container` that uses this handler. If it has ScheduledTopic items in its
+        list they will be initialized and scheduled.
 
         :param event:
         """
-        # call the parent event handler first to take care of connection
+        # call the parent event handler first to take care of the connection with the broker
         super().on_start(event)
 
         try:
-            self.sender = self._create_sender(self.endpoint)
-            _logger.debug(f"Created sender {self.sender}")
+            self._sender = self._create_sender(self.endpoint)
+            _logger.debug(f"Created sender {self._sender}")
         except BrokerHandlerError as e:
             _logger.error(f'Error while creating sender: {str(e)}')
             return
 
-        # assigns the sender on all available topic groups and schedules them
-        for topic_group in self.topic_groups:
-            topic_group.sender = self.sender
-            self._schedule_topic_group(topic_group)
+        for topic in self.topics:
+            if isinstance(topic, ScheduledTopic):
+                self._init_scheduled_topic(topic)
 
-    def add_topic_group(self, topic_group: TopicGroup) -> None:
+    def send_message(self, message: Any, subject: str, content_type='application/json') -> None:
         """
-        # NOTE: This approach of publisher does not allow to modify the set of topic groups while the app is running.
-                That would mean to sync the topics in Subscription Manager as well which is not currently 100% supported
+        Sends the provided message via the broker. The subject will serve as a routing key in the broker. Typically it
+        should be the respective topic_id.
 
+        :param message:
+        :param subject:
+        :param content_type:
         """
-        if self.started:
-            _logger.warning("Cannot add new topic group while app is running.")
+        if not isinstance(message, proton.Message):
+            message = proton.Message(body=message)
+
+        message.subject = subject
+        message.content_type = content_type
+
+        if self._sender.credit:
+            self._sender.send(message)
+            _logger.info(truncate_message(message=f"Message sent: {message}", max_length=100))
+        else:
+            _logger.info(truncate_message(message=f"No credit to send message {message}", max_length=100))
+
+    def add_topic(self, topic: TopicType):
+        """
+        Adds the provided topic in the list. If is is scheduled topic it will be initialized and scheduled
+        :param topic:
+        """
+        if isinstance(topic, ScheduledTopic) and self.started:
+            self._init_scheduled_topic(topic)
+
+        self.topics.append(topic)
+
+    def trigger_topic(self, topic: TopicType, context: Optional[Any] = None):
+        """
+        Generates the topic data via its pipeline and sends them via the broker
+
+        :param topic:
+        :param context:
+        """
+
+        try:
+            data = topic.run_pipeline(context=context)
+        except PipelineError as e:
+            _logger.error(f"Error while getting data of topic {topic.id}: {str(e)}")
             return
 
-        self.topic_groups.append(topic_group)
+        _logger.info(f"Sending message for topic {topic.id}")
+        self.send_message(message=data, subject=topic.id)
 
-    def _schedule_topic_group(self, topic_group: TopicGroup) -> None:
+    def _init_scheduled_topic(self, scheduled_topic: ScheduledTopic):
         """
-        :param topic_group:
+        Sets the send_message method as callback in the topic and schedules it.
+        :param scheduled_topic:
         """
+        # assign the message_send_callback on the scheduled topic
+        scheduled_topic.set_message_send_callback(self.send_message)
 
-        self.container.schedule(topic_group.interval_in_sec, topic_group)
+        # and schedule it
+        self.container.schedule(scheduled_topic.interval_in_sec, scheduled_topic)
