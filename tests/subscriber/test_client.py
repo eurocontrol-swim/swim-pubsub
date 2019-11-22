@@ -81,7 +81,7 @@ def test_subscriber__subscribe__sm_api_error__logs_error_and_raises_Subscription
 
     expected_message = f"Error while accessing Subscription Manager: server error"
     with pytest.raises(SubscriptionManagerServiceError) as e:
-        subscriber.subscribe('topic', callback=mock.Mock())
+        subscriber.subscribe('topics', callback=mock.Mock())
 
         log_message = caplog.records[0]
         assert expected_message == str(e)
@@ -101,7 +101,7 @@ def test_subscriber__broker_handler_error__logs_and_raises_BrokerHandlerError(ca
     subscriber = Subscriber(broker_handler, sm_service)
 
     with pytest.raises(BrokerHandlerError) as e:
-        subscriber.subscribe('topic', callback=mock.Mock())
+        subscriber.subscribe('topics', callback=mock.Mock())
 
         log_messages = caplog.records
         assert 'could not create receiver' == str(e)
@@ -113,7 +113,7 @@ def test_subscriber__subscribe__no_errors(caplog):
     caplog.set_level(logging.DEBUG)
 
     queue = uuid.uuid4().hex
-    topic = 'topic'
+    topic = 'topics'
     callback = mock.Mock()
 
     broker_handler = mock.Mock()
@@ -137,7 +137,7 @@ def test_subscriber__unsubscribe__sm_api_error__logs_error_and_raises_Subscripti
     caplog.set_level(logging.DEBUG)
 
     queue = uuid.uuid4().hex
-    topic = 'topic'
+    topic = 'topics'
 
     broker_handler = mock.Mock()
     sm_service = mock.Mock()
@@ -159,7 +159,7 @@ def test_subscriber__unsubscribe__broker_handler_error__logs_and_raises_BrokerHa
     caplog.set_level(logging.DEBUG)
 
     queue = uuid.uuid4().hex
-    topic = 'topic'
+    topic = 'topics'
 
     broker_handler = mock.Mock()
     broker_handler.remove_receiver = mock.Mock(side_effect=BrokerHandlerError('could not remove receiver'))
@@ -182,7 +182,7 @@ def test_subscriber__unsubscribe__no_errors(caplog):
     caplog.set_level(logging.DEBUG)
 
     queue = uuid.uuid4().hex
-    topic = 'topic'
+    topic = 'topics'
 
     broker_handler = mock.Mock()
     broker_handler.remove_receiver = mock.Mock()
@@ -206,7 +206,7 @@ def test_subscriber__pause__sm_api_error__logs_message_and_raises_SubscriptionMa
     caplog.set_level(logging.DEBUG)
 
     queue = uuid.uuid4().hex
-    topic = 'topic'
+    topic = 'topics'
 
     broker_handler = mock.Mock()
     sm_service = mock.Mock()
@@ -230,7 +230,7 @@ def test_subscriber__pause__no_errors(caplog):
     caplog.set_level(logging.DEBUG)
 
     queue = uuid.uuid4().hex
-    topic = 'topic'
+    topic = 'topics'
 
     broker_handler = mock.Mock()
     sm_service = mock.Mock()
@@ -252,7 +252,7 @@ def test_subscriber__resume__sm_api_error__logs_message_and_raises_SubscriptionM
     caplog.set_level(logging.DEBUG)
 
     queue = uuid.uuid4().hex
-    topic = 'topic'
+    topic = 'topics'
 
     broker_handler = mock.Mock()
     sm_service = mock.Mock()
@@ -276,7 +276,7 @@ def test_subscriber__resume__no_errors(caplog):
     caplog.set_level(logging.DEBUG)
 
     queue = uuid.uuid4().hex
-    topic = 'topic'
+    topic = 'topics'
 
     broker_handler = mock.Mock()
     sm_service = mock.Mock()

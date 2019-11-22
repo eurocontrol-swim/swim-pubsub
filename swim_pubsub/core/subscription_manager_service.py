@@ -50,35 +50,31 @@ class SubscriptionManagerService:
         """
         self.client: SubscriptionManagerClient = client
 
-    def get_topics(self) -> List[str]:
+    def get_topics(self) -> List[Topic]:
         """
-        Retrieves all the available topic names
+        Retrieves all the available topics names
         :return:
         """
-        db_topics = self.client.get_topics()
-
-        result = [topic.name for topic in db_topics]
-
-        return result
-
-    def create_topics(self, topic_names: List[str]):
-        """
-        Creates new records for each one of the given topics in the Subscription Manager
-        """
-        for topic_name in topic_names:
-            self.create_topic(topic_name)
+        return self.client.get_topics()
 
     def create_topic(self, topic_name: str):
         """
-        Creates a new record for the given topic in the Subscription Manager
+        Creates a new record for the given topics in the Subscription Manager
         """
         topic = Topic(name=topic_name)
 
         self.client.post_topic(topic)
 
+    def delete_topic(self, topic: Topic):
+        """
+        Creates a new record for the given topics in the Subscription Manager
+        """
+
+        self.client.delete_topic_by_id(topic_id=topic.id)
+
     def subscribe(self, topic_name: str) -> str:
         """
-        Subscribes the client to the given topic.
+        Subscribes the client to the given topics.
 
         :return: A unique queue corresponding to this subscription
         """
@@ -102,7 +98,7 @@ class SubscriptionManagerService:
 
     def unsubscribe(self, queue: str):
         """
-        Unsubscribes the client from the topic that corresponds to the given queue
+        Unsubscribes the client from the topics that corresponds to the given queue
         """
         subscription = self._get_subscription_by_queue(queue)
 

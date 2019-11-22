@@ -60,7 +60,7 @@ class Subscriber(Client):
     @handle_sms_error
     def get_topics(self) -> List[str]:
         """
-        Retrieves all the topic names from the SubscriptionManager
+        Retrieves all the topics names from the SubscriptionManager
         """
         return self.sm_service.get_topics()
 
@@ -68,8 +68,8 @@ class Subscriber(Client):
     @handle_broker_handler_error
     def subscribe(self, topic_name: str, callback: Callable):
         """
-        Subscribes the subscriber to the given topic name in the SubscriptionManager. The SubscriptionManager will
-        crate a new unique queue which will be used to reveive data from the given topic. The callback will be called
+        Subscribes the subscriber to the given topics name in the SubscriptionManager. The SubscriptionManager will
+        crate a new unique queue which will be used to reveive data from the given topics. The callback will be called
         upon receiving any data from the queue.
 
         :param topic_name:
@@ -86,7 +86,7 @@ class Subscriber(Client):
     @handle_broker_handler_error
     def unsubscribe(self, topic_name: str):
         """
-        Unsubscribes the subscriber from the given topic by removing the corresponding receiver from the handler and by
+        Unsubscribes the subscriber from the given topics by removing the corresponding receiver from the handler and by
         deleting the corresponding subscription from the SubscriptionManager
         :param topic_name:
         """
@@ -100,7 +100,7 @@ class Subscriber(Client):
     @handle_sms_error
     def pause(self, topic_name: str):
         """
-        Pauses the subscription of the given topic by pausing the corresponding subscription in the SubscriptionManager
+        Pauses the subscription of the given topics by pausing the corresponding subscription in the SubscriptionManager
         :param topic_name:
         """
         queue = self.subscriptions[topic_name]
@@ -111,7 +111,7 @@ class Subscriber(Client):
     @handle_sms_error
     def resume(self, topic_name: str):
         """
-        Resumes the subscription of the given topic by resuming the corresponding subscription in the SubscriptionManager
+        Resumes the subscription of the given topics by resuming the corresponding subscription in the SubscriptionManager
         :param topic_name:
         """
         queue = self.subscriptions[topic_name]

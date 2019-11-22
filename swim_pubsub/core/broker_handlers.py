@@ -33,7 +33,6 @@ import logging
 from typing import Optional
 
 import proton
-from proton import SSLDomain
 from proton.handlers import MessagingHandler
 from proton.reactor import Container
 

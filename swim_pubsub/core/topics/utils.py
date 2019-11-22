@@ -27,39 +27,10 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-import json
-import os
-
-from proton import Message
-
-from swim_pubsub.subscriber import SubApp
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-def handler(message: Message, topic: str) -> None:
+def truncate_message(message: str, max_length: int):
 
-    with open(f'/home/alex/data/{topic}', 'a') as f:
-        data = json.loads(message.body)
-
-        f.write("New message:\n")
-        f.write(f'Content-Type: {message.content_type}\n')
-        f.write(f'Data: {json.dumps(data, indent=4, sort_keys=True)}\n\n')
-
-
-current_dir = os.path.dirname(os.path.realpath(__file__))
-config_file = os.path.join(current_dir, 'config.yml')
-app = SubApp.create_from_config(config_file)
-
-app.run(threaded=True)
-
-subscriber = app.register_subscriber('swim-explorer', 'swim-explorer')
-
-
-# basic functions of the core
-#
-# >>> from functools import partial
-# >>> subscriber.subscribe('arrivals.paris', callback=partial(handler, topics='arrivals.paris'))
-# >>> subscriber.pause('arrivals.paris')
-# >>> subscriber.resume('arrivals.paris')
-# >>> subscriber.unsubscribe('arrivals.paris')
+    return f"{message[:max_length]}..."
