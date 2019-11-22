@@ -33,7 +33,7 @@ __author__ = 'EUROCONTROL (SWIM)'
 
 setup(
     name='swim-pubsub',
-    version='1.5.0',
+    version='1.5.1',
     description='SWIM Publish Subscribe mini framework',
     author='EUROCONTROL (SWIM)',
     author_email='',

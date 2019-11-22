@@ -27,7 +27,6 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-import inspect
 import logging
 from typing import Optional, Callable, Any, Iterable
 
@@ -78,11 +77,6 @@ class Pipeline(list):
     def _validate_handler(handler: Callable) -> Callable:
         if not isinstance(handler, Callable):
             raise ValueError(f"{handler} is not callable")
-
-        parameters = inspect.getfullargspec(handler).args
-
-        if 'context' not in parameters:
-            raise ValueError(f"handler {handler} should accept a `context` parameter")
 
         return handler
 

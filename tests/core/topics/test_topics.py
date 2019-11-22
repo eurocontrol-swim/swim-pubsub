@@ -52,20 +52,6 @@ def test_pipeline__handler_is_not_callable__raise_valueerror(handler):
 
 
 @pytest.mark.parametrize('handler', [
-    lambda x: x,
-    partial(lambda x: x)
-])
-def test_pipeline__handler_does_not_accept_context_parameter__raise_valueerror(handler):
-    with pytest.raises(ValueError) as e:
-        Pipeline([handler])
-        assert f"handler {handler} should accept a `context` parameter" == str(e)
-
-    with pytest.raises(ValueError) as e:
-        Pipeline().append(handler)
-        assert f"handler {handler} should accept a `context` parameter" == str(e)
-
-
-@pytest.mark.parametrize('handler', [
     lambda context: context,
     partial(lambda context: context)
 ])
