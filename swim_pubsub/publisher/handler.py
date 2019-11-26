@@ -122,11 +122,11 @@ class PublisherBrokerHandler(BrokerHandler):
         try:
             data = topic.run_pipeline(context=context)
         except PipelineError as e:
-            _logger.error(f"Error while getting data of topic {topic.id}: {str(e)}")
+            _logger.error(f"Error while getting data of topic {topic.name}: {str(e)}")
             return
 
-        _logger.info(f"Sending message for topic {topic.id}")
-        self.send_message(message=data, subject=topic.id)
+        _logger.info(f"Sending message for topic {topic.name}")
+        self.send_message(message=data, subject=topic.name)
 
     def _init_scheduled_topic(self, scheduled_topic: ScheduledTopic):
         """

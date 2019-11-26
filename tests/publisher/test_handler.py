@@ -173,13 +173,13 @@ def test_trigger_topic__pipelineerror_occurs__message_is_not_sent_and_logs_messa
     handler.send_message = mock_send_message
     topic = Mock()
     topic.run_pipeline = Mock(side_effect=PipelineError('pipeline error'))
-    topic.id = "1"
+    topic.name = "1"
     context = {}
 
     handler.trigger_topic(topic, context)
 
     log_message = caplog.records[0]
-    assert f"Error while getting data of topic {topic.id}: pipeline error" == log_message.message
+    assert f"Error while getting data of topic {topic.name}: pipeline error" == log_message.message
 
     mock_send_message.assert_not_called()
 
@@ -193,15 +193,15 @@ def test_trigger_topic__message_is_sent_and_logs_message(caplog):
     data = Message(body="data")
     topic = Mock()
     topic.run_pipeline = Mock(return_value=data)
-    topic.id = 1
+    topic.name = "1"
     context = {}
 
     handler.trigger_topic(topic, context)
 
     log_message = caplog.records[0]
-    assert f"Sending message for topic {topic.id}" == log_message.message
+    assert f"Sending message for topic {topic.name}" == log_message.message
 
-    mock_send_message.assert_called_once_with(message=data, subject=topic.id)
+    mock_send_message.assert_called_once_with(message=data, subject=topic.name)
 
 
 def test_on_start__create_sender_error__logs_error_and_returns(caplog):
