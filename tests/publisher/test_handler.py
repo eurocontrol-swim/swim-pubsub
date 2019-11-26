@@ -112,7 +112,7 @@ def test_add_topic__topic_is_added():
 
     pipeline = Pipeline([handler1, handler2, handler3])
 
-    topic = Topic(topic_id='topic', pipeline=pipeline)
+    topic = Topic(topic_name='topic', pipeline=pipeline)
 
     handler.add_topic(topic)
 
@@ -134,7 +134,7 @@ def test_add_topic__scheduled_topic_is_added_and_initialized(handler_started,
 
     pipeline = Pipeline([handler1, handler2, handler3])
 
-    scheduled_topic = ScheduledTopic(topic_id='topic', pipeline=pipeline, interval_in_sec=5)
+    scheduled_topic = ScheduledTopic(topic_name='topic', pipeline=pipeline, interval_in_sec=5)
 
     handler.add_topic(scheduled_topic)
 
@@ -157,7 +157,7 @@ def test_init_scheduled_topic():
 
     pipeline = Pipeline([handler1, handler2, handler3])
 
-    scheduled_topic = ScheduledTopic(topic_id='topic', pipeline=pipeline, interval_in_sec=5)
+    scheduled_topic = ScheduledTopic(topic_name='topic', pipeline=pipeline, interval_in_sec=5)
 
     handler._init_scheduled_topic(scheduled_topic)
 
@@ -226,8 +226,8 @@ def test_on_start__no_errors():
     def handler3(context): return context + "handler3"
     def handler4(context): return context + "handler4"
 
-    scheduled_topic = ScheduledTopic(topic_id='s_topic', pipeline=Pipeline([handler1, handler2]), interval_in_sec=5)
-    topic = Topic(topic_id='topic', pipeline=Pipeline([handler3, handler4]))
+    scheduled_topic = ScheduledTopic(topic_name='s_topic', pipeline=Pipeline([handler1, handler2]), interval_in_sec=5)
+    topic = Topic(topic_name='topic', pipeline=Pipeline([handler3, handler4]))
 
     handler = PublisherBrokerHandler(mock.Mock())
 

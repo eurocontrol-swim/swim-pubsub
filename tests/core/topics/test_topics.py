@@ -71,7 +71,7 @@ def test_topic_run_pipeline__all_topic_handlers_are_called_in_chain_mode():
 
     pipeline = Pipeline([handler1, handler2, handler3])
 
-    topic = Topic(topic_id='topic', pipeline=pipeline)
+    topic = Topic(topic_name='topic', pipeline=pipeline)
     context = {}
 
     result = topic.run_pipeline(context=context)
@@ -85,7 +85,7 @@ def test_scheduled_topic__trigger_message_send__no_message_send_handler__returns
     pipeline = Mock()
     pipeline.run = Mock()
 
-    scheduled_topic = ScheduledTopic(topic_id='topic', pipeline=pipeline, interval_in_sec=5)
+    scheduled_topic = ScheduledTopic(topic_name='topic', pipeline=pipeline, interval_in_sec=5)
 
     scheduled_topic._trigger_message_send()
 
@@ -101,13 +101,13 @@ def test_scheduled_topic__trigger_message_send__pipelineerror_returns_and_logs_m
     pipeline = Mock()
     pipeline.run = Mock(side_effect=PipelineError('pipeline error'))
 
-    scheduled_topic = ScheduledTopic(topic_id='topic', pipeline=pipeline, interval_in_sec=5)
+    scheduled_topic = ScheduledTopic(topic_name='topic', pipeline=pipeline, interval_in_sec=5)
     scheduled_topic.set_message_send_callback(Mock())
 
     scheduled_topic._trigger_message_send()
 
     log_message = caplog.records[0]
-    expected_message = f"Error while getting data of scheduled topic {scheduled_topic.id}: pipeline error"
+    expected_message = f"Error while getting data of scheduled topic {scheduled_topic.name}: pipeline error"
     assert expected_message == log_message.message
 
 
@@ -120,16 +120,16 @@ def test_scheduled_topic__trigger_message_send_is_called_normally_and_logs_messa
 
     pipeline = Pipeline([handler1, handler2, handler3])
 
-    scheduled_topic = ScheduledTopic(topic_id='topic', pipeline=pipeline, interval_in_sec=5)
+    scheduled_topic = ScheduledTopic(topic_name='topic', pipeline=pipeline, interval_in_sec=5)
     mock_message_send_handler = Mock()
     scheduled_topic.set_message_send_callback(mock_message_send_handler)
 
     scheduled_topic._trigger_message_send()
 
     log_message = caplog.records[0]
-    expected_message = f"Sending message for scheduled topic {scheduled_topic.id}"
+    expected_message = f"Sending message for scheduled topic {scheduled_topic.name}"
     assert expected_message == log_message.message
-    mock_message_send_handler.assert_called_once_with(message="handler1handler2handler3", subject=scheduled_topic.id)
+    mock_message_send_handler.assert_called_once_with(message="handler1handler2handler3", subject=scheduled_topic.name)
 
 
 def test_scheduled_topic__on_timer_task__message_send_is_triggered_and_task_is_rescheduled(caplog):
@@ -141,7 +141,7 @@ def test_scheduled_topic__on_timer_task__message_send_is_triggered_and_task_is_r
 
     pipeline = Pipeline([handler1, handler2, handler3])
 
-    scheduled_topic = ScheduledTopic(topic_id='topic', pipeline=pipeline, interval_in_sec=5)
+    scheduled_topic = ScheduledTopic(topic_name='topic', pipeline=pipeline, interval_in_sec=5)
 
     scheduled_topic._trigger_message_send = Mock()
 

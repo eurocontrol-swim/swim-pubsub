@@ -95,19 +95,19 @@ class Pipeline(list):
 
 class Topic:
 
-    def __init__(self, topic_id: str, pipeline: Pipeline):
+    def __init__(self, topic_name: str, pipeline: Pipeline):
         """
         Represents a topic in the broker identified by topic_id. The provided pipeline will generate the data to be sent
         in the broker for this topic.
 
-        :param topic_id:
+        :param topic_name:
         :param pipeline:
         """
-        self.id = topic_id
+        self.name = topic_name
         self.pipeline = pipeline
 
     def __repr__(self):
-        return f"<Topic '{self.id}'>"
+        return f"<Topic '{self.name}'>"
 
     def run_pipeline(self, context: Optional[Any] = None) -> Any:
         """
@@ -119,7 +119,7 @@ class Topic:
 
 class ScheduledTopic(MessagingHandler, Topic):
 
-    def __init__(self, topic_id: str, pipeline: Pipeline, interval_in_sec: int, **kwargs) -> None:
+    def __init__(self, topic_name: str, pipeline: Pipeline, interval_in_sec: int, **kwargs) -> None:
         """
         A topic to be run upon interval periods.
         It inherits from `proton.MessagingHandler` in order to take advantage of its event scheduling functionality
@@ -127,7 +127,7 @@ class ScheduledTopic(MessagingHandler, Topic):
         :param interval_in_sec:
         """
         MessagingHandler.__init__(self)
-        Topic.__init__(self, topic_id, pipeline)
+        Topic.__init__(self, topic_name, pipeline)
 
         self.interval_in_sec = interval_in_sec
 
@@ -135,7 +135,7 @@ class ScheduledTopic(MessagingHandler, Topic):
         self._message_send_callback: Optional[Callable] = None
 
     def __repr__(self):
-        return f"<ScheduledTopic '{self.id}'>"
+        return f"<ScheduledTopic '{self.name}'>"
 
     def set_message_send_callback(self, message_send_callback: Callable):
         """
@@ -151,17 +151,17 @@ class ScheduledTopic(MessagingHandler, Topic):
         """
         if not self._message_send_callback:
             _logger.warning(f"Not able to send messages because no sender "
-                            f"has been assigned yet for topic '{self.id}'")
+                            f"has been assigned yet for topic '{self.name}'")
             return
 
         try:
             data = self.pipeline.run()
         except PipelineError as e:
-            _logger.error(f"Error while getting data of scheduled topic {self.id}: {str(e)}")
+            _logger.error(f"Error while getting data of scheduled topic {self.name}: {str(e)}")
             return
 
-        _logger.info(f"Sending message for scheduled topic {self.id}")
-        self._message_send_callback(message=data, subject=self.id)
+        _logger.info(f"Sending message for scheduled topic {self.name}")
+        self._message_send_callback(message=data, subject=self.name)
 
     def on_timer_task(self, event: proton.Event):
         """

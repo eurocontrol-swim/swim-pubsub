@@ -68,18 +68,18 @@ class Publisher(PubSubClient):
         - Passes it to the broker handler
         :param topic:
         """
-        if topic.id in self.topics_dict:
-            raise PubSubClientError(f"Topic chain with id {topic.id} already exists.")
+        if topic.name in self.topics_dict:
+            raise PubSubClientError(f"Topic with name {topic.name} already exists.")
 
         try:
-            self.sm_service.create_topic(topic_name=topic.id)
+            self.sm_service.create_topic(topic_name=topic.name)
         except APIError as e:
             if e.status_code == 409:
-                _logger.error(f"Topic {topic.id} already exists in SM")
+                _logger.error(f"Topic {topic.name} already exists in SM")
             else:
                 raise PubSubClientError(f"Error while creating topic in SM: {str(e)}")
 
-        self.topics_dict[topic.id] = topic
+        self.topics_dict[topic.name] = topic
 
         self.broker_handler.add_topic(topic)
 
@@ -105,7 +105,7 @@ class Publisher(PubSubClient):
         """
         sm_topics: List[SMTopic] = self.sm_service.get_topics()
         sm_topics_str: List[str] = [topic.name for topic in sm_topics]
-        local_topics_str: List[str] = [topic.id for topic in self.topics_dict.values()]
+        local_topics_str: List[str] = [topic.name for topic in self.topics_dict.values()]
 
         topics_str_to_create: Set[str] = set(local_topics_str) - set(sm_topics_str)
         topics_str_to_delete: Set[str] = set(sm_topics_str) - set(local_topics_str)

@@ -122,8 +122,8 @@ for city, icao24 in airports.items():
     arrivals_pipeline = Pipeline([partial(opensky.arrivals_today_handler, icao24)])
     departures_pipeline = Pipeline([partial(opensky.departures_today_handler, icao24)])
 
-    city_arrivals_topic = Topic(topic_id=f'arrivals.{city}', pipeline=arrivals_pipeline)
-    city_departures_topic = ScheduledTopic(topic_id=f'departures.{city}', pipeline=departures_pipeline,
+    city_arrivals_topic = Topic(topic_name=f'arrivals.{city}', pipeline=arrivals_pipeline)
+    city_departures_topic = ScheduledTopic(topic_name=f'departures.{city}', pipeline=departures_pipeline,
                                            interval_in_sec=5)
 
     # register topics

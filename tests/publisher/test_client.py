@@ -52,15 +52,15 @@ def test_publisher__register_topic__topic_already_exists__raises_ClientError():
 
     pipeline = Pipeline([handler1, handler2, handler3])
 
-    topic = Topic(topic_id='topic', pipeline=pipeline)
+    topic = Topic(topic_name='topic', pipeline=pipeline)
 
     publisher = Publisher(broker_handler, sm_service)
 
-    publisher.topics_dict[topic.id] = topic
+    publisher.topics_dict[topic.name] = topic
 
     with pytest.raises(PubSubClientError) as e:
         publisher.register_topic(topic)
-    assert f"Topic chain with id {topic.id} already exists." == str(e.value)
+    assert f"Topic with name {topic.name} already exists." == str(e.value)
 
 
 def test_publisher__register_topic__sm_error_409__logs_message(caplog):
@@ -76,14 +76,14 @@ def test_publisher__register_topic__sm_error_409__logs_message(caplog):
 
     pipeline = Pipeline([handler1, handler2, handler3])
 
-    topic = Topic(topic_id='topic', pipeline=pipeline)
+    topic = Topic(topic_name='topic', pipeline=pipeline)
 
     publisher = Publisher(broker_handler, sm_service)
 
     publisher.register_topic(topic)
 
     log_message = caplog.records[0]
-    assert f"Topic {topic.id} already exists in SM" == log_message.message
+    assert f"Topic {topic.name} already exists in SM" == log_message.message
 
     assert topic in publisher.topics_dict.values()
 
@@ -99,7 +99,7 @@ def test_publisher__register_topic__sm_error__raises_ClientError():
 
     pipeline = Pipeline([handler1, handler2, handler3])
 
-    topic = Topic(topic_id='topic', pipeline=pipeline)
+    topic = Topic(topic_name='topic', pipeline=pipeline)
 
     publisher = Publisher(broker_handler, sm_service)
 
@@ -123,14 +123,14 @@ def test_publisher__register_topic__topic_does_not_exist_and_is_registered_in_br
 
     pipeline = Pipeline([handler1, handler2, handler3])
 
-    topic = Topic(topic_id='topic', pipeline=pipeline)
+    topic = Topic(topic_name='topic', pipeline=pipeline)
 
     publisher = Publisher(broker_handler, sm_service)
 
     publisher.register_topic(topic)
 
     assert topic in publisher.topics_dict.values()
-    mock_sm_create_topic.assert_called_once_with(topic_name=topic.id)
+    mock_sm_create_topic.assert_called_once_with(topic_name=topic.name)
 
 
 def test_publish_topic__topic_id_does_not_exist__raises_clienterror():
@@ -155,7 +155,7 @@ def test_publish_topic__topic_exists_and_broker_handler_is_called():
 
     pipeline = Pipeline([handler1, handler2, handler3])
 
-    topic = Topic(topic_id='topic', pipeline=pipeline)
+    topic = Topic(topic_name='topic', pipeline=pipeline)
 
     publisher = Publisher(broker_handler, sm_service)
 
@@ -166,7 +166,7 @@ def test_publish_topic__topic_exists_and_broker_handler_is_called():
     publisher.broker_handler.trigger_topic = mock_trigger_topic
 
     context = {}
-    publisher.publish_topic(topic.id, context=context)
+    publisher.publish_topic(topic.name, context=context)
 
     mock_trigger_topic.assert_called_once_with(topic=topic, context=context)
 
@@ -186,18 +186,18 @@ def test_publisher__sync_topics():
     def handler2(context): return context + "handler2"
     def handler3(context): return context + "handler3"
 
-    topic1 = Topic(topic_id='topic1', pipeline=Pipeline([handler1]))
-    topic2 = Topic(topic_id='topic2', pipeline=Pipeline([handler2]))
-    topic3 = Topic(topic_id='topic3', pipeline=Pipeline([handler3]))
+    topic1 = Topic(topic_name='topic1', pipeline=Pipeline([handler1]))
+    topic2 = Topic(topic_name='topic2', pipeline=Pipeline([handler2]))
+    topic3 = Topic(topic_name='topic3', pipeline=Pipeline([handler3]))
 
     publisher = Publisher(broker_handler, sm_service)
 
     # register topics but not all of them are saved in SM
     publisher.register_topic(topic=topic1)
-    publisher.topics_dict[topic2.id] = topic2
-    publisher.topics_dict[topic3.id] = topic3
+    publisher.topics_dict[topic2.name] = topic2
+    publisher.topics_dict[topic3.name] = topic3
 
-    mock_sm_create_topic.assert_called_once_with(topic_name=topic1.id)
+    mock_sm_create_topic.assert_called_once_with(topic_name=topic1.name)
 
     sm_topic1 = SMTopic(id=1, name="topic1")
     sm_topic4 = SMTopic(id=4, name="topic4")
