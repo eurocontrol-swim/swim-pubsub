@@ -35,7 +35,7 @@ import pytest
 from rest_client.errors import APIError
 from subscription_manager_client.models import Topic as SMTopic
 
-from swim_pubsub.core.errors import ClientError
+from swim_pubsub.core.errors import PubSubClientError
 from swim_pubsub.core.topics.topics import Topic, Pipeline
 from swim_pubsub.publisher import Publisher
 
@@ -58,9 +58,9 @@ def test_publisher__register_topic__topic_already_exists__raises_ClientError():
 
     publisher.topics_dict[topic.id] = topic
 
-    with pytest.raises(ClientError) as e:
+    with pytest.raises(PubSubClientError) as e:
         publisher.register_topic(topic)
-        assert f"Topic chain with id {topic.id} already exists." == str(e)
+    assert f"Topic chain with id {topic.id} already exists." == str(e.value)
 
 
 def test_publisher__register_topic__sm_error_409__logs_message(caplog):
@@ -103,9 +103,9 @@ def test_publisher__register_topic__sm_error__raises_ClientError():
 
     publisher = Publisher(broker_handler, sm_service)
 
-    with pytest.raises(ClientError) as e:
+    with pytest.raises(PubSubClientError) as e:
         publisher.register_topic(topic)
-        assert f"[500] - error" == str(e)
+    assert f"Error while creating topic in SM: [500] - error" == str(e.value)
 
     assert topic not in publisher.topics_dict.values()
 
@@ -140,9 +140,9 @@ def test_publish_topic__topic_id_does_not_exist__raises_clienterror():
 
     publisher = Publisher(broker_handler, sm_service)
 
-    with pytest.raises(ClientError) as e:
+    with pytest.raises(PubSubClientError) as e:
         publisher.publish_topic('invalid_topic_id')
-        assert f"Invalid topic id: invalid_topic_id" == str(e)
+    assert f"Invalid topic id: invalid_topic_id" == str(e.value)
 
 
 def test_publish_topic__topic_exists_and_broker_handler_is_called():

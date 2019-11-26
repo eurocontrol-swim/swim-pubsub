@@ -44,11 +44,11 @@ __author__ = "EUROCONTROL (SWIM)"
 def test_pipeline__handler_is_not_callable__raise_valueerror(handler):
     with pytest.raises(ValueError) as e:
         Pipeline([handler])
-        assert f"{handler} is not callable" == str(e)
+    assert f"{handler} is not callable" == str(e.value)
 
     with pytest.raises(ValueError) as e:
         Pipeline().append(handler)
-        assert f"{handler} is not callable" == str(e)
+    assert f"{handler} is not callable" == str(e.value)
 
 
 @pytest.mark.parametrize('handler', [

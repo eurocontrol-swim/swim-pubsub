@@ -30,7 +30,9 @@ Details on EUROCONTROL: http://www.eurocontrol.int
 import logging
 from typing import Dict, List, Callable
 
-from swim_pubsub.core.clients import Client
+from subscription_manager_client.models import Topic
+
+from swim_pubsub.core.clients import PubSubClient
 from swim_pubsub.core.utils import handle_sms_error, handle_broker_handler_error
 from swim_pubsub.core.subscription_manager_service import SubscriptionManagerService
 from swim_pubsub.subscriber.handler import SubscriberBrokerHandler
@@ -41,7 +43,7 @@ __author__ = "EUROCONTROL (SWIM)"
 _logger = logging.getLogger(__name__)
 
 
-class Subscriber(Client):
+class Subscriber(PubSubClient):
 
     def __init__(self, broker_handler: SubscriberBrokerHandler, sm_service: SubscriptionManagerService):
         """
@@ -53,12 +55,12 @@ class Subscriber(Client):
         """
         self.broker_handler: SubscriberBrokerHandler = broker_handler  # for type hint
 
-        Client.__init__(self, broker_handler, sm_service)
+        PubSubClient.__init__(self, broker_handler, sm_service)
 
         self.subscriptions: Dict[str, str] = {}
 
     @handle_sms_error
-    def get_topics(self) -> List[str]:
+    def get_topics(self) -> List[Topic]:
         """
         Retrieves all the topics names from the SubscriptionManager
         """

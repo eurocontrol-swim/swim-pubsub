@@ -35,14 +35,14 @@ from subscription_manager_client.subscription_manager import SubscriptionManager
 from swim_pubsub.core import ConfigDict
 from swim_pubsub.core.broker_handlers import BrokerHandler
 from swim_pubsub.core.subscription_manager_service import SubscriptionManagerService
-from swim_pubsub.core.errors import ClientError
+from swim_pubsub.core.errors import PubSubClientError
 
 __author__ = "EUROCONTROL (SWIM)"
 
 _logger = logging.getLogger(__name__)
 
 
-class Client:
+class PubSubClient:
 
     def __init__(self, broker_handler: BrokerHandler, sm_service: SubscriptionManagerService) -> None:
         """
@@ -66,7 +66,7 @@ class Client:
         :param sm_config:
         :param username: the actual SubscriptionManager username of the client
         :param password: the actual SubscriptionManager password of the client
-        :return: Client
+        :return: PubSubClient
         """
         sm_client = cls._create_sm_client(sm_config, username, password)
 
@@ -96,7 +96,7 @@ class Client:
             sm_client.ping_credentials()
         except APIError as e:
             if e.status_code == 401:
-                raise ClientError('Invalid user credentials')
+                raise PubSubClientError('Invalid user credentials')
             raise
 
         return sm_client

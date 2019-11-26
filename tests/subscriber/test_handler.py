@@ -68,7 +68,7 @@ def test_remove_receiver__receiver_not_found__raises_BrokerHandlerError(caplog):
 
     with pytest.raises(BrokerHandlerError) as e:
         handler.remove_receiver(queue)
-        assert f'no receiver found for queue: {queue}' == str(e)
+    assert f'No receiver found for queue: {queue}' == str(e.value)
 
 
 def test_remove_receiver__no_errors(caplog):

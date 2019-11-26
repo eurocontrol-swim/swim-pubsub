@@ -53,9 +53,9 @@ def test_subscriber__get_topics__sm_api_error__logs_error_and_raises_Subscriptio
     with pytest.raises(SubscriptionManagerServiceError) as e:
         subscriber.get_topics()
 
-        log_message = caplog.records[0]
-        assert expected_message == str(e)
-        assert expected_message == log_message.message
+    assert "server error" == str(e.value)
+    log_message = caplog.records[0]
+    assert expected_message == log_message.message
 
 
 def test_subscriber__get_topics__no_errors():
@@ -83,9 +83,9 @@ def test_subscriber__subscribe__sm_api_error__logs_error_and_raises_Subscription
     with pytest.raises(SubscriptionManagerServiceError) as e:
         subscriber.subscribe('topics', callback=mock.Mock())
 
-        log_message = caplog.records[0]
-        assert expected_message == str(e)
-        assert expected_message == log_message.message
+    assert "server error" == str(e.value)
+    log_message = caplog.records[0]
+    assert expected_message == log_message.message
 
 
 def test_subscriber__broker_handler_error__logs_and_raises_BrokerHandlerError(caplog):
@@ -103,10 +103,10 @@ def test_subscriber__broker_handler_error__logs_and_raises_BrokerHandlerError(ca
     with pytest.raises(BrokerHandlerError) as e:
         subscriber.subscribe('topics', callback=mock.Mock())
 
-        log_messages = caplog.records
-        assert 'could not create receiver' == str(e)
-        assert 'could not create receiver' == log_messages[0].message
-        assert f"Subscribed in SM and got unique queue: {queue}" == log_messages[1].message
+    assert 'could not create receiver' == str(e.value)
+    log_messages = caplog.records
+    assert f"Subscribed in SM and got unique queue: {queue}" == log_messages[0].message
+    assert 'could not create receiver' == log_messages[1].message
 
 
 def test_subscriber__subscribe__no_errors(caplog):
@@ -150,9 +150,9 @@ def test_subscriber__unsubscribe__sm_api_error__logs_error_and_raises_Subscripti
     with pytest.raises(SubscriptionManagerServiceError) as e:
         subscriber.unsubscribe(topic)
 
-        log_message = caplog.records[0]
-        assert expected_message == str(e)
-        assert expected_message == log_message.message
+    assert "server error" == str(e.value)
+    log_message = caplog.records[0]
+    assert expected_message == log_message.message
 
 
 def test_subscriber__unsubscribe__broker_handler_error__logs_and_raises_BrokerHandlerError(caplog):
@@ -172,10 +172,10 @@ def test_subscriber__unsubscribe__broker_handler_error__logs_and_raises_BrokerHa
     with pytest.raises(BrokerHandlerError) as e:
         subscriber.unsubscribe(topic)
 
-        log_message = caplog.records[0]
-        assert 'could not remove receiver' == str(e)
-        assert 'could not remove receiver' == log_message.message
-        sm_service.unsubscribe.assert_not_called()
+    log_message = caplog.records[0]
+    assert 'could not remove receiver' == str(e.value)
+    assert 'could not remove receiver' == log_message.message
+    sm_service.unsubscribe.assert_not_called()
 
 
 def test_subscriber__unsubscribe__no_errors(caplog):
@@ -219,9 +219,9 @@ def test_subscriber__pause__sm_api_error__logs_message_and_raises_SubscriptionMa
     with pytest.raises(SubscriptionManagerServiceError) as e:
         subscriber.pause(topic)
 
-        log_message = caplog.records[0]
-        assert expected_message == str(e)
-        assert expected_message == log_message.message
+    assert "server error" == str(e.value)
+    log_message = caplog.records[0]
+    assert expected_message == log_message.message
 
 
 def test_subscriber__pause__no_errors(caplog):
@@ -265,9 +265,9 @@ def test_subscriber__resume__sm_api_error__logs_message_and_raises_SubscriptionM
     with pytest.raises(SubscriptionManagerServiceError) as e:
         subscriber.resume(topic)
 
-        log_message = caplog.records[0]
-        assert expected_message == str(e)
-        assert expected_message == log_message.message
+    assert "server error" == str(e.value)
+    log_message = caplog.records[0]
+    assert expected_message == log_message.message
 
 
 def test_subscriber__resume__no_errors(caplog):

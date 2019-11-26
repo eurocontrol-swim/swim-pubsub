@@ -42,7 +42,7 @@ __author__ = "EUROCONTROL (SWIM)"
 def test__connector__host_is_none__raises_valueerror():
     with pytest.raises(ValueError) as e:
         Connector(host=None)
-        assert 'no host was provided' == e.value
+    assert 'no host was provided' == str(e.value)
 
 
 def test__connector__url():
@@ -168,7 +168,7 @@ def test_broker_handler__create_receiver_fails__raises_BrokerHandlerError():
 
     with pytest.raises(BrokerHandlerError) as e:
         broker_handler._create_receiver('endpoint')
-        assert f"proton error" == str(e)
+    assert f"proton error" == str(e.value)
 
 
 def test_broker_handler__create_sender_fails__raises_BrokerHAndlerError():
@@ -178,7 +178,7 @@ def test_broker_handler__create_sender_fails__raises_BrokerHAndlerError():
 
     with pytest.raises(BrokerHandlerError) as e:
         broker_handler._create_sender('endpoint')
-        assert f"proton error" == str(e)
+    assert f"proton error" == str(e.value)
 
 
 def test_broker_handler__on_start(caplog):

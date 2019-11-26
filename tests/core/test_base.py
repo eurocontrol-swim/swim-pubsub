@@ -33,7 +33,7 @@ import pytest
 
 from swim_pubsub.core.base import App
 from swim_pubsub.core.broker_handlers import BrokerHandler, Connector
-from swim_pubsub.core.clients import Client
+from swim_pubsub.core.clients import PubSubClient
 from swim_pubsub.core.errors import AppError
 
 __author__ = "EUROCONTROL (SWIM)"
@@ -66,7 +66,7 @@ def test_app__before_run__argument_no_callable__raises_AppError(invalid_callable
 
     with pytest.raises(AppError) as e:
         app.before_run(invalid_callable_argument)
-        assert f'{invalid_callable_argument} is not callable' == str(e)
+    assert f'{invalid_callable_argument} is not callable' == str(e.value)
 
 
 @mock.patch('swim_pubsub.core.base._ProtonContainer.run', return_value=None)
@@ -97,7 +97,7 @@ def test_app__register_client__client_class_is_not_of_type_Client__raises_AppErr
 
     with pytest.raises(AppError) as e:
         app.register_client('username', 'password', client_class=FakeClient)
-        assert "client_class should be Client or should inherit from Client" == str(e)
+    assert "client_class should be PubSubClient or should inherit from PubSubClient" == str(e.value)
 
 
 def test_app_register_client__client_class_is_valid__client_is_properly_registered():
@@ -106,14 +106,14 @@ def test_app_register_client__client_class_is_valid__client_is_properly_register
     app = App(handler)
     app.config = {'SUBSCRIPTION-MANAGER': {}}
 
-    class CustomClient(Client):
+    class CustomPubSubClient(PubSubClient):
         pass
 
-    client = CustomClient(broker_handler=mock.Mock(), sm_service=mock.Mock())
+    client = CustomPubSubClient(broker_handler=mock.Mock(), sm_service=mock.Mock())
 
-    CustomClient.create = mock.Mock(return_value=client)
+    CustomPubSubClient.create = mock.Mock(return_value=client)
 
-    app.register_client('username', 'password', CustomClient)
+    app.register_client('username', 'password', CustomPubSubClient)
 
     assert client in app.clients
 
@@ -123,11 +123,11 @@ def test_app__remove_client__client_is_not_registered__raises_AppError():
 
     app = App(handler)
 
-    client = Client(broker_handler=mock.Mock(), sm_service=mock.Mock())
+    client = PubSubClient(broker_handler=mock.Mock(), sm_service=mock.Mock())
 
     with pytest.raises(AppError) as e:
         app.remove_client(client)
-        assert f"Client {client} was not found" == str(e)
+    assert f"PubSubClient {client} was not found" == str(e.value)
 
 
 def test_app__remove_client__client_is_registered_and_removed_properly():
@@ -135,7 +135,7 @@ def test_app__remove_client__client_is_registered_and_removed_properly():
 
     app = App(handler)
 
-    client = Client(broker_handler=mock.Mock(), sm_service=mock.Mock())
+    client = PubSubClient(broker_handler=mock.Mock(), sm_service=mock.Mock())
 
     app.clients.append(client)
 

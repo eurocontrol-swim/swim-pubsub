@@ -92,7 +92,7 @@ def test_subscribe__topic_name_is_not_registered_in_sm__raises_SubscriptionManag
 
     with pytest.raises(SubscriptionManagerServiceError) as e:
         sm_service.subscribe('topic2')
-        assert 'topic3 is not registered in Subscription Manager' == str(e)
+    assert 'topic2 is not registered in Subscription Manager' == str(e.value)
 
 
 def test_subscribe__sm_api_error__raises_SubscriptionManagerServiceError():
@@ -143,7 +143,7 @@ def test_unsubscribe__sm_api_error__raises_SubscriptionManagerServiceError():
 
     with pytest.raises(SubscriptionManagerServiceError) as e:
         sm_service.unsubscribe(subscription.queue)
-        assert f"Error while deleting subscription '{subscription.id}': server error" == str(e)
+    assert f"Error while deleting subscription '{subscription.id}': [500] - server error" == str(e.value)
 
 
 def test_unsubscribe__no_errors():
@@ -177,10 +177,10 @@ def test_pause__sm_api_error__raises_SubscriptionManagerServiceError():
 
     with pytest.raises(SubscriptionManagerServiceError) as e:
         sm_service.pause(subscription.queue)
-        assert f"Error while updating subscription '{subscription.id}': server error" == str(e)
-        called_subscription_id, called_subscription = sm_client.put_subscription.call_args[0]
-        assert called_subscription_id == subscription.id
-        assert called_subscription.active is False
+    called_subscription_id, called_subscription = sm_client.put_subscription.call_args[0]
+    assert called_subscription_id == subscription.id
+    assert called_subscription.active is False
+    assert f"Error while updating subscription '{subscription.id}': [500] - server error" == str(e.value)
 
 
 def test_pause__no_errors():
@@ -214,10 +214,10 @@ def test_resume__sm_api_error__raises_SubscriptionManagerServiceError():
 
     with pytest.raises(SubscriptionManagerServiceError) as e:
         sm_service.resume(subscription.queue)
-        assert f"Error while updating subscription '{subscription.id}': server error" == str(e)
-        called_subscription_id, called_subscription = sm_client.put_subscription.call_args[0]
-        assert called_subscription_id == subscription.id
-        assert called_subscription.active is True
+    assert f"Error while updating subscription '{subscription.id}': [500] - server error" == str(e.value)
+    called_subscription_id, called_subscription = sm_client.put_subscription.call_args[0]
+    assert called_subscription_id == subscription.id
+    assert called_subscription.active is True
 
 
 def test_resume__no_errors():
@@ -248,7 +248,7 @@ def test__get_subscription_by_queue__no_subscriptions_found__raises_Subscription
 
     with pytest.raises(SubscriptionManagerServiceError) as e:
         sm_service._get_subscription_by_queue('queue')
-        assert "No subscription found for queue 'queue'" == str(e)
+    assert "No subscription found for queue 'queue'" == str(e.value)
 
 
 def test__get_subscription_by_name__subscription_is_found_and_returned():

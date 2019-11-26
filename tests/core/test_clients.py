@@ -33,8 +33,8 @@ import pytest
 from rest_client.errors import APIError
 from subscription_manager_client.subscription_manager import SubscriptionManagerClient
 
-from swim_pubsub.core.clients import Client
-from swim_pubsub.core.errors import ClientError
+from swim_pubsub.core.clients import PubSubClient
+from swim_pubsub.core.errors import PubSubClientError
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -49,9 +49,9 @@ def test_client__create_sm_client__invalid_username_password__raises_ClientError
 
     api_error = APIError('detail', 401)
     with mock.patch.object(SubscriptionManagerClient, 'ping_credentials', side_effect=api_error):
-        with pytest.raises(ClientError) as e:
-            Client._create_sm_client(sm_config, 'username', 'password')
-            assert 'Invalid user credentials' == str(e)
+        with pytest.raises(PubSubClientError) as e:
+            PubSubClient._create_sm_client(sm_config, 'username', 'password')
+        assert 'Invalid user credentials' == str(e.value)
 
 
 def test_client__create_sm_client__returns_SubscriptionManagerClient_object():
@@ -62,7 +62,7 @@ def test_client__create_sm_client__returns_SubscriptionManagerClient_object():
         'verify': 'verify'
     }
     with mock.patch.object(SubscriptionManagerClient, 'ping_credentials', return_value=mock.Mock()):
-        sm_client = Client._create_sm_client(sm_config, 'username', 'password')
+        sm_client = PubSubClient._create_sm_client(sm_config, 'username', 'password')
 
         assert isinstance(sm_client, SubscriptionManagerClient)
 
@@ -78,6 +78,6 @@ def test_client__create__returns_Client_object():
 
     with mock.patch.object(SubscriptionManagerClient, 'ping_credentials', return_value=mock.Mock()):
 
-        client = Client.create(broker_handler, sm_config, 'username', 'password')
+        client = PubSubClient.create(broker_handler, sm_config, 'username', 'password')
 
-        assert isinstance(client, Client)
+        assert isinstance(client, PubSubClient)

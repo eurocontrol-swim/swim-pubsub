@@ -33,7 +33,7 @@ from typing import Optional, List, Callable, Type
 
 from proton.reactor import Container
 
-from swim_pubsub.core.clients import Client
+from swim_pubsub.core.clients import PubSubClient
 from swim_pubsub.core import ConfigDict
 from swim_pubsub.core.errors import AppError
 from swim_pubsub.core.broker_handlers import BrokerHandler
@@ -100,7 +100,7 @@ class App(_ProtonContainer):
         self._handler: BrokerHandler = handler
         self._before_run_actions: List[Callable] = []
         self.config: Optional[ConfigDict] = None
-        self.clients: List[Client] = []
+        self.clients: List[PubSubClient] = []
 
     def before_run(self, f: Callable):
         """
@@ -132,7 +132,7 @@ class App(_ProtonContainer):
 
         super().run(threaded=threaded)
 
-    def register_client(self, username: str, password: str, client_class: Type[Client] = Client):
+    def register_client(self, username: str, password: str, client_class: Type[PubSubClient] = PubSubClient):
         """
         Creates a new client (publisher, subscriber) that will be using this app.
 
@@ -141,9 +141,9 @@ class App(_ProtonContainer):
         :param client_class:
         :return:
         """
-        if client_class != Client:
-            if Client not in client_class.__bases__:
-                raise AppError(f"client_class should be Client or should inherit from Client")
+        if client_class != PubSubClient:
+            if PubSubClient not in client_class.__bases__:
+                raise AppError(f"client_class should be PubSubClient or should inherit from PubSubClient")
 
         client = client_class.create(self._handler, self.config['SUBSCRIPTION-MANAGER'], username, password)
 
@@ -151,11 +151,11 @@ class App(_ProtonContainer):
 
         return client
 
-    def remove_client(self, client: Client):
+    def remove_client(self, client: PubSubClient):
         try:
             self.clients.remove(client)
         except ValueError:
-            raise AppError(f"Client {client} was not found")
+            raise AppError(f"PubSubClient {client} was not found")
 
     @classmethod
     def _create_from_config(cls, config_file: str, broker_handler_class: Type[BrokerHandler]):

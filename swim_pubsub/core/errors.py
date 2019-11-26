@@ -39,7 +39,7 @@ class BrokerHandlerError(Exception):
     pass
 
 
-class ClientError(Exception):
+class PubSubClientError(Exception):
     pass
 
 

@@ -33,8 +33,8 @@ from typing import Optional, Any, Dict, List, Set
 from rest_client.errors import APIError
 from subscription_manager_client.models import Topic as SMTopic
 
-from swim_pubsub.core.clients import Client
-from swim_pubsub.core.errors import ClientError
+from swim_pubsub.core.clients import PubSubClient
+from swim_pubsub.core.errors import PubSubClientError
 from swim_pubsub.core.topics import TopicType
 from swim_pubsub.publisher.handler import PublisherBrokerHandler
 from swim_pubsub.core.subscription_manager_service import SubscriptionManagerService
@@ -45,7 +45,7 @@ __author__ = "EUROCONTROL (SWIM)"
 _logger = logging.getLogger(__name__)
 
 
-class Publisher(Client):
+class Publisher(PubSubClient):
 
     def __init__(self, broker_handler: PublisherBrokerHandler, sm_service: SubscriptionManagerService):
         """
@@ -57,7 +57,7 @@ class Publisher(Client):
         """
         self.broker_handler: PublisherBrokerHandler = broker_handler  # for type hint
 
-        Client.__init__(self, broker_handler, sm_service)
+        PubSubClient.__init__(self, broker_handler, sm_service)
 
         self.topics_dict: Dict[str, TopicType] = {}
 
@@ -69,7 +69,7 @@ class Publisher(Client):
         :param topic:
         """
         if topic.id in self.topics_dict:
-            raise ClientError(f"Topic chain with id {topic.id} already exists.")
+            raise PubSubClientError(f"Topic chain with id {topic.id} already exists.")
 
         try:
             self.sm_service.create_topic(topic_name=topic.id)
@@ -77,7 +77,7 @@ class Publisher(Client):
             if e.status_code == 409:
                 _logger.error(f"Topic {topic.id} already exists in SM")
             else:
-                raise ClientError(f"Error while creating topic in SM: {str(e)}")
+                raise PubSubClientError(f"Error while creating topic in SM: {str(e)}")
 
         self.topics_dict[topic.id] = topic
 
@@ -93,7 +93,7 @@ class Publisher(Client):
         topic = self.topics_dict.get(topic_id)
 
         if topic is None:
-            raise ClientError(f"Invalid topic id: {topic_id}")
+            raise PubSubClientError(f"Invalid topic id: {topic_id}")
 
         self.broker_handler.trigger_topic(topic=topic, context=context)
 
