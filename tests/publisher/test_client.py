@@ -42,9 +42,14 @@ from swim_pubsub.publisher import Publisher
 __author__ = "EUROCONTROL (SWIM)"
 
 
-def test_publisher__register_topic__topic_already_exists__raises_ClientError():
-    broker_handler = mock.Mock()
+def test_publisher__register_topic__topic_already_exists__returns_and_logs_error(caplog):
+    caplog.set_level(logging.DEBUG)
+
     sm_service = mock.Mock()
+    sm_service.create_topic = Mock()
+
+    broker_handler = mock.Mock()
+    broker_handler.add_topic = Mock()
 
     def handler1(context): return "handler1"
     def handler2(context): return context + "handler2"
@@ -58,9 +63,12 @@ def test_publisher__register_topic__topic_already_exists__raises_ClientError():
 
     publisher.topics_dict[topic.name] = topic
 
-    with pytest.raises(PubSubClientError) as e:
-        publisher.register_topic(topic)
-    assert f"Topic with name {topic.name} already exists." == str(e.value)
+    publisher.register_topic(topic)
+    log_message = caplog.records[0]
+
+    assert f"Topic with name {topic.name} already exists in broker." == log_message.message
+    sm_service.create_topic.assert_not_called()
+    broker_handler.add_topic.assert_not_called()
 
 
 def test_publisher__register_topic__sm_error_409__logs_message(caplog):
@@ -83,7 +91,7 @@ def test_publisher__register_topic__sm_error_409__logs_message(caplog):
     publisher.register_topic(topic)
 
     log_message = caplog.records[0]
-    assert f"Topic {topic.name} already exists in SM" == log_message.message
+    assert f"Topic with name {topic.name} already exists in SM" == log_message.message
 
     assert topic in publisher.topics_dict.values()
 

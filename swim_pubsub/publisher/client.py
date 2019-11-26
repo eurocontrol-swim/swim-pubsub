@@ -69,13 +69,14 @@ class Publisher(PubSubClient):
         :param topic:
         """
         if topic.name in self.topics_dict:
-            raise PubSubClientError(f"Topic with name {topic.name} already exists.")
+            _logger.error(f"Topic with name {topic.name} already exists in broker.")
+            return
 
         try:
             self.sm_service.create_topic(topic_name=topic.name)
         except APIError as e:
             if e.status_code == 409:
-                _logger.error(f"Topic {topic.name} already exists in SM")
+                _logger.error(f"Topic with name {topic.name} already exists in SM")
             else:
                 raise PubSubClientError(f"Error while creating topic in SM: {str(e)}")
 
