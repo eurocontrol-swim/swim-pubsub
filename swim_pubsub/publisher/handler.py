@@ -35,7 +35,7 @@ import proton
 from swim_pubsub.core.broker_handlers import BrokerHandler, Connector
 from swim_pubsub.core.errors import BrokerHandlerError
 from swim_pubsub.core.topics import TopicType
-from swim_pubsub.core.topics.topics import ScheduledTopic, PipelineError
+from swim_pubsub.core.topics.topics import ScheduledTopic, TopicDataHandlerError
 from swim_pubsub.core.topics.utils import truncate_message
 
 __author__ = "EUROCONTROL (SWIM)"
@@ -113,15 +113,15 @@ class PublisherBrokerHandler(BrokerHandler):
 
     def trigger_topic(self, topic: TopicType, context: Optional[Any] = None):
         """
-        Generates the topic data via its pipeline and sends them via the broker
+        Generates the topic data via its data handler and sends them via the broker
 
         :param topic:
         :param context:
         """
 
         try:
-            data = topic.run_pipeline(context=context)
-        except PipelineError as e:
+            data = topic.get_data(context=context)
+        except TopicDataHandlerError as e:
             _logger.error(f"Error while getting data of topic {topic.name}: {str(e)}")
             return
 

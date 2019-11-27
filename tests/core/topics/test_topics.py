@@ -33,94 +33,56 @@ from unittest.mock import Mock
 
 import pytest
 
-from swim_pubsub.core.topics.topics import Topic, ScheduledTopic, PipelineError, Pipeline
+from swim_pubsub.core.topics.topics import Topic, ScheduledTopic, TopicDataHandlerError
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-@pytest.mark.parametrize('handler', [
+@pytest.mark.parametrize('data_handler', [
     1, 1.0, "str", (1,), [], {}
 ])
-def test_pipeline__handler_is_not_callable__raise_valueerror(handler):
+def test_topic__data_handler_is_not_callable__raise_valueerror(data_handler):
     with pytest.raises(ValueError) as e:
-        Pipeline([handler])
-    assert f"{handler} is not callable" == str(e.value)
-
-    with pytest.raises(ValueError) as e:
-        Pipeline().append(handler)
-    assert f"{handler} is not callable" == str(e.value)
-
-
-@pytest.mark.parametrize('handler', [
-    lambda context: context,
-    partial(lambda context: context)
-])
-def test_pipeline__handler_is_valid_and_added_in_list(handler):
-    p = Pipeline([handler])
-    assert handler in p
-
-    p = Pipeline()
-    p.append(handler)
-    assert handler in p
-
-
-def test_topic_run_pipeline__all_topic_handlers_are_called_in_chain_mode():
-    def handler1(context): return "handler1"
-    def handler2(context): return context + "handler2"
-    def handler3(context): return context + "handler3"
-
-    pipeline = Pipeline([handler1, handler2, handler3])
-
-    topic = Topic(topic_name='topic', pipeline=pipeline)
-    context = {}
-
-    result = topic.run_pipeline(context=context)
-
-    assert "handler1handler2handler3" == result
+        Topic(topic_name='topic', data_handler=data_handler)
+    assert f"{data_handler} is not callable" == str(e.value)
 
 
 def test_scheduled_topic__trigger_message_send__no_message_send_handler__returns_and_logs_message(caplog):
     caplog.set_level(logging.DEBUG)
 
-    pipeline = Mock()
-    pipeline.run = Mock()
+    data_handler = Mock()
 
-    scheduled_topic = ScheduledTopic(topic_name='topic', pipeline=pipeline, interval_in_sec=5)
+    scheduled_topic = ScheduledTopic(topic_name='topic', data_handler=data_handler, interval_in_sec=5)
 
     scheduled_topic._trigger_message_send()
 
     log_message = caplog.records[0]
     expected_message = "Not able to send messages because no sender has been assigned yet for topic 'topic'"
     assert expected_message == log_message.message
-    pipeline.run.assert_not_called()
+    data_handler.assert_not_called()
 
 
-def test_scheduled_topic__trigger_message_send__pipelineerror_returns_and_logs_message(caplog):
+def test_scheduled_topic__trigger_message_send__topicdatahandlererror_returns_and_logs_message(caplog):
     caplog.set_level(logging.DEBUG)
 
-    pipeline = Mock()
-    pipeline.run = Mock(side_effect=PipelineError('pipeline error'))
+    data_handler = Mock(side_effect=TopicDataHandlerError('data handler error'))
 
-    scheduled_topic = ScheduledTopic(topic_name='topic', pipeline=pipeline, interval_in_sec=5)
+    scheduled_topic = ScheduledTopic(topic_name='topic', data_handler=data_handler, interval_in_sec=5)
     scheduled_topic.set_message_send_callback(Mock())
 
     scheduled_topic._trigger_message_send()
 
     log_message = caplog.records[0]
-    expected_message = f"Error while getting data of scheduled topic {scheduled_topic.name}: pipeline error"
+    expected_message = f"Error while getting data of scheduled topic {scheduled_topic.name}: data handler error"
     assert expected_message == log_message.message
 
 
 def test_scheduled_topic__trigger_message_send_is_called_normally_and_logs_message(caplog):
     caplog.set_level(logging.DEBUG)
 
-    def handler1(context): return "handler1"
-    def handler2(context): return context + "handler2"
-    def handler3(context): return context + "handler3"
+    def data_handler(context=None): return "data"
 
-    pipeline = Pipeline([handler1, handler2, handler3])
-
-    scheduled_topic = ScheduledTopic(topic_name='topic', pipeline=pipeline, interval_in_sec=5)
+    scheduled_topic = ScheduledTopic(topic_name='topic', data_handler=data_handler, interval_in_sec=5)
     mock_message_send_handler = Mock()
     scheduled_topic.set_message_send_callback(mock_message_send_handler)
 
@@ -129,19 +91,15 @@ def test_scheduled_topic__trigger_message_send_is_called_normally_and_logs_messa
     log_message = caplog.records[0]
     expected_message = f"Sending message for scheduled topic {scheduled_topic.name}"
     assert expected_message == log_message.message
-    mock_message_send_handler.assert_called_once_with(message="handler1handler2handler3", subject=scheduled_topic.name)
+    mock_message_send_handler.assert_called_once_with(message="data", subject=scheduled_topic.name)
 
 
 def test_scheduled_topic__on_timer_task__message_send_is_triggered_and_task_is_rescheduled(caplog):
     caplog.set_level(logging.DEBUG)
 
-    def handler1(context): return "handler1"
-    def handler2(context): return context + "handler2"
-    def handler3(context): return context + "handler3"
+    def data_handler(context=None): return "data"
 
-    pipeline = Pipeline([handler1, handler2, handler3])
-
-    scheduled_topic = ScheduledTopic(topic_name='topic', pipeline=pipeline, interval_in_sec=5)
+    scheduled_topic = ScheduledTopic(topic_name='topic', data_handler=data_handler, interval_in_sec=5)
 
     scheduled_topic._trigger_message_send = Mock()
 

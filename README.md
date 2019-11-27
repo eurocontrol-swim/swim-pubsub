@@ -1,4 +1,4 @@
-# SWIM PubSub: Publish/Subscribe mini framework 1.5.5
+# SWIM PubSub: Publish/Subscribe mini framework 1.6.0
 
 SWIM PubSub implements the publish-subscribe messaging pattern. It is based on the python library 
 [qpid-proton](https://github.com/apache/qpid-proton/tree/master/python) which extends and can be used to create
@@ -126,11 +126,8 @@ It represents a user of an App (publisher, subscriber or both). Upon instantiati
 handler of its app (for sending/receiving data to/from the broker) as well as a `SubscriptionManagerService` object (for
 managing their topics and subscriptions in the Subscription Manager).
 
-### Pipeline
-Is a collection of handlers (callables) to be run in a pipeline mode and generate the data of a topic
-
 ### Topic
-It represents the topic to be routed in the broker and it handles its data generation via its pipeline.
+It represents the topic to be routed in the broker and it handles its data generation via its data_handler.
 Its data generation can be triggered on demand.
 
 ### ScheduledTopic
@@ -168,17 +165,15 @@ import json
 
 from proton import Message
 
-from swim_pubsub.core.topics.topics import Topic, ScheduledTopic, Pipeline
+from swim_pubsub.core.topics.topics import Topic, ScheduledTopic
 from swim_pubsub.publisher import PubApp
 
 
-# handlers
-def random_integers(context=None):
-    return [random.randrange(100) for _ in range(100)]
-
-
+# data handlers
 def even_integers(context=None):
-    data = [num for num in context if num % 2 == 0]
+    random_integers = [random.randrange(100) for _ in range(100)]
+
+    data = [num for num in random_integers if num % 2 == 0]
 
     message = Message()
     message.content_type = 'application/json'
@@ -188,7 +183,9 @@ def even_integers(context=None):
 
 
 def odd_integers(context=None):
-    data = [num for num in context if num % 2 == 1]
+    random_integers = [random.randrange(100) for _ in range(100)]
+
+    data = [num for num in random_integers if num % 2 == 1]
 
     message = Message()
     message.content_type = 'application/json'
@@ -198,11 +195,8 @@ def odd_integers(context=None):
 
 
 # create topics
-even_pipeline = Pipeline([random_integers, even_integers])
-odd_pipeline = Pipeline([random_integers, odd_integers])
-
-even_topic = Topic('integers.even', pipeline=even_pipeline)
-odd_topic = ScheduledTopic('integers.odd', pipeline=odd_pipeline, interval_in_sec=5)
+even_topic = Topic('integers.even', data_handler=even_integers)
+odd_topic = ScheduledTopic('integers.odd', data_handler=odd_integers, interval_in_sec=5)
 
 # create app
 current_dir = os.path.dirname(os.path.realpath(__file__))

@@ -38,88 +38,53 @@ __author__ = "EUROCONTROL (SWIM)"
 _logger = logging.getLogger(__name__)
 
 
-class PipelineError(Exception):
+class TopicDataHandlerError(Exception):
     pass
 
 
-class Pipeline(list):
+class Topic:
 
-    def __init__(self, handler_sequence: Iterable = ()) -> None:
+    def __init__(self, topic_name: str, data_handler: Callable):
         """
-        A collection of handlers to be executed one by one in a pipeline mode. See below `append` for details on the
-        expected handler signature
+        Represents a topic in the broker identified by topic_id. The provided data_handler will generate the data to be
+        sent in the broker for this topic.
 
-        :param handler_sequence:
-        """
-        for handler in handler_sequence:
-            self._validate_handler(handler)
-
-        super().__init__(handler_sequence)
-
-    def append(self, handler: Callable) -> None:
-        """
-        :param handler: optional callback to generate data for the specific topics
-                          - after and arbitrary number of positional arguments it accepts an optional parameter 'context'
-                            for passing potential data from the parent topics and then an arbitrary number of keyword
-                            arguments
-                          - it returns a proton.Message or any other type
-                          - it raises a PipelineError in case or error
+        :param topic_name:
+        :param data_handler: the callback to generate data for the specific topics
+                              - it accepts an optional parameter `context` for passing relevant data upon calling it
+                              - it returns a proton.Message or any other type
+                              - it raises a TopicDataHandlerError in case or error
 
                           Signature:
-                            callback(*args, context: Optional[TopicDataType] = None, **kwargs) -> TopicDataType
+                            callback(context: Optional[TopicDataType] = None) -> TopicDataType
                                 \"""
-                                :raises PipelineError
+                                :raises TopicDataHandlerError
                                 \"""
         """
-        super().append(self._validate_handler(handler))
+        self.name = topic_name
+        self.data_handler = self._validate_data_handler(data_handler)
+
+    def __repr__(self):
+        return f"<Topic '{self.name}'>"
 
     @staticmethod
-    def _validate_handler(handler: Callable) -> Callable:
+    def _validate_data_handler(handler: Callable) -> Callable:
         if not isinstance(handler, Callable):
             raise ValueError(f"{handler} is not callable")
 
         return handler
 
-    def run(self, context: Optional[Any] = None) -> Any:
-        """
-        Runs the handlers in pipeline mode and returns the result
-        :param context:
-        :return:
-        """
-        data = context
-        for handler in self:
-            data = handler(context=data)
-
-        return data
-
-
-class Topic:
-
-    def __init__(self, topic_name: str, pipeline: Pipeline):
-        """
-        Represents a topic in the broker identified by topic_id. The provided pipeline will generate the data to be sent
-        in the broker for this topic.
-
-        :param topic_name:
-        :param pipeline:
-        """
-        self.name = topic_name
-        self.pipeline = pipeline
-
-    def __repr__(self):
-        return f"<Topic '{self.name}'>"
-
-    def run_pipeline(self, context: Optional[Any] = None) -> Any:
+    def get_data(self, context: Optional[Any] = None) -> Any:
         """
         :param context:
         :return:
         """
-        return self.pipeline.run(context=context)
+        return self.data_handler(context=context)
 
 
 class ScheduledTopic(MessagingHandler, Topic):
 
-    def __init__(self, topic_name: str, pipeline: Pipeline, interval_in_sec: int, **kwargs) -> None:
+    def __init__(self, topic_name: str, data_handler: Callable, interval_in_sec: int, **kwargs) -> None:
         """
         A topic to be run upon interval periods.
         It inherits from `proton.MessagingHandler` in order to take advantage of its event scheduling functionality
@@ -127,7 +92,7 @@ class ScheduledTopic(MessagingHandler, Topic):
         :param interval_in_sec:
         """
         MessagingHandler.__init__(self)
-        Topic.__init__(self, topic_name, pipeline)
+        Topic.__init__(self, topic_name, data_handler)
 
         self.interval_in_sec = interval_in_sec
 
@@ -155,8 +120,8 @@ class ScheduledTopic(MessagingHandler, Topic):
             return
 
         try:
-            data = self.pipeline.run()
-        except PipelineError as e:
+            data = self.get_data()
+        except TopicDataHandlerError as e:
             _logger.error(f"Error while getting data of scheduled topic {self.name}: {str(e)}")
             return
 
@@ -170,7 +135,7 @@ class ScheduledTopic(MessagingHandler, Topic):
 
         :param event:
         """
-        # send the pipeline data
+        # send the topic data
         self._trigger_message_send()
 
         # and re-schedule the topic

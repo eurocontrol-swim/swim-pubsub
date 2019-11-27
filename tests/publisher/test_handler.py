@@ -36,7 +36,7 @@ from proton import Message
 
 from swim_pubsub.core.broker_handlers import BrokerHandler
 from swim_pubsub.core.errors import BrokerHandlerError
-from swim_pubsub.core.topics.topics import ScheduledTopic, Topic, PipelineError, Pipeline
+from swim_pubsub.core.topics.topics import ScheduledTopic, Topic, TopicDataHandlerError
 from swim_pubsub.publisher import PublisherBrokerHandler
 
 __author__ = "EUROCONTROL (SWIM)"
@@ -106,13 +106,9 @@ def test_send_message__data_not_message_instance__message_is_converted_and_sent_
 def test_add_topic__topic_is_added():
     handler = PublisherBrokerHandler(mock.Mock())
 
-    def handler1(context): return "handler1"
-    def handler2(context): return context + "handler2"
-    def handler3(context): return context + "handler3"
+    def data_handler(context=None): return "data"
 
-    pipeline = Pipeline([handler1, handler2, handler3])
-
-    topic = Topic(topic_name='topic', pipeline=pipeline)
+    topic = Topic(topic_name='topic', data_handler=data_handler)
 
     handler.add_topic(topic)
 
@@ -121,20 +117,15 @@ def test_add_topic__topic_is_added():
 
 
 @pytest.mark.parametrize('handler_started, scheduled_topic_initialized', [(True, True), (False, False)])
-def test_add_topic__scheduled_topic_is_added_and_initialized(handler_started,
-                                                                         scheduled_topic_initialized):
+def test_add_topic__scheduled_topic_is_added_and_initialized(handler_started, scheduled_topic_initialized):
     handler = PublisherBrokerHandler(mock.Mock())
     handler.started = handler_started
     mock_init_scheduled_topic = Mock()
     handler._init_scheduled_topic = mock_init_scheduled_topic
 
-    def handler1(context): return "handler1"
-    def handler2(context): return context + "handler2"
-    def handler3(context): return context + "handler3"
+    def data_handler(context=None): return "data"
 
-    pipeline = Pipeline([handler1, handler2, handler3])
-
-    scheduled_topic = ScheduledTopic(topic_name='topic', pipeline=pipeline, interval_in_sec=5)
+    scheduled_topic = ScheduledTopic(topic_name='topic', data_handler=data_handler, interval_in_sec=5)
 
     handler.add_topic(scheduled_topic)
 
@@ -151,13 +142,9 @@ def test_init_scheduled_topic():
     handler.container = mock.Mock()
     handler.container.schedule = mock.Mock()
 
-    def handler1(context): return "handler1"
-    def handler2(context): return context + "handler2"
-    def handler3(context): return context + "handler3"
+    def data_handler(context=None): return "data"
 
-    pipeline = Pipeline([handler1, handler2, handler3])
-
-    scheduled_topic = ScheduledTopic(topic_name='topic', pipeline=pipeline, interval_in_sec=5)
+    scheduled_topic = ScheduledTopic(topic_name='topic', data_handler=data_handler, interval_in_sec=5)
 
     handler._init_scheduled_topic(scheduled_topic)
 
@@ -165,21 +152,21 @@ def test_init_scheduled_topic():
     handler.container.schedule.assert_called_once_with(scheduled_topic.interval_in_sec, scheduled_topic)
 
 
-def test_trigger_topic__pipelineerror_occurs__message_is_not_sent_and_logs_message(caplog):
+def test_trigger_topic__topicdatahandlererror_occurs__message_is_not_sent_and_logs_message(caplog):
     caplog.set_level(logging.DEBUG)
 
     handler = PublisherBrokerHandler(mock.Mock())
     mock_send_message = Mock()
     handler.send_message = mock_send_message
     topic = Mock()
-    topic.run_pipeline = Mock(side_effect=PipelineError('pipeline error'))
+    topic.get_data = Mock(side_effect=TopicDataHandlerError('data handler error'))
     topic.name = "1"
     context = {}
 
     handler.trigger_topic(topic, context)
 
     log_message = caplog.records[0]
-    assert f"Error while getting data of topic {topic.name}: pipeline error" == log_message.message
+    assert f"Error while getting data of topic {topic.name}: data handler error" == log_message.message
 
     mock_send_message.assert_not_called()
 
@@ -192,7 +179,7 @@ def test_trigger_topic__message_is_sent_and_logs_message(caplog):
     handler.send_message = mock_send_message
     data = Message(body="data")
     topic = Mock()
-    topic.run_pipeline = Mock(return_value=data)
+    topic.get_data = Mock(return_value=data)
     topic.name = "1"
     context = {}
 
@@ -221,13 +208,11 @@ def test_on_start__create_sender_error__logs_error_and_returns(caplog):
 
 
 def test_on_start__no_errors():
-    def handler1(context): return "handler1"
-    def handler2(context): return context + "handler2"
-    def handler3(context): return context + "handler3"
-    def handler4(context): return context + "handler4"
+    def data_handler1(context): return "data1"
+    def data_handler2(context): return "data2"
 
-    scheduled_topic = ScheduledTopic(topic_name='s_topic', pipeline=Pipeline([handler1, handler2]), interval_in_sec=5)
-    topic = Topic(topic_name='topic', pipeline=Pipeline([handler3, handler4]))
+    scheduled_topic = ScheduledTopic(topic_name='s_topic', data_handler=data_handler1, interval_in_sec=5)
+    topic = Topic(topic_name='topic', data_handler=data_handler2)
 
     handler = PublisherBrokerHandler(mock.Mock())
 

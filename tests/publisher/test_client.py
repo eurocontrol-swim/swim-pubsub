@@ -36,7 +36,7 @@ from rest_client.errors import APIError
 from subscription_manager_client.models import Topic as SMTopic
 
 from swim_pubsub.core.errors import PubSubClientError
-from swim_pubsub.core.topics.topics import Topic, Pipeline
+from swim_pubsub.core.topics.topics import Topic
 from swim_pubsub.publisher import Publisher
 
 __author__ = "EUROCONTROL (SWIM)"
@@ -51,13 +51,9 @@ def test_publisher__register_topic__topic_already_exists__returns_and_logs_error
     broker_handler = mock.Mock()
     broker_handler.add_topic = Mock()
 
-    def handler1(context): return "handler1"
-    def handler2(context): return context + "handler2"
-    def handler3(context): return context + "handler3"
+    def data_handler(context=None): return "data"
 
-    pipeline = Pipeline([handler1, handler2, handler3])
-
-    topic = Topic(topic_name='topic', pipeline=pipeline)
+    topic = Topic(topic_name='topic', data_handler=data_handler)
 
     publisher = Publisher(broker_handler, sm_service)
 
@@ -78,13 +74,9 @@ def test_publisher__register_topic__sm_error_409__logs_message(caplog):
     sm_service = mock.Mock()
     sm_service.create_topic = Mock(side_effect=APIError(status_code=409, detail="error"))
 
-    def handler1(context): return "handler1"
-    def handler2(context): return context + "handler2"
-    def handler3(context): return context + "handler3"
+    def data_handler(context=None): return "data"
 
-    pipeline = Pipeline([handler1, handler2, handler3])
-
-    topic = Topic(topic_name='topic', pipeline=pipeline)
+    topic = Topic(topic_name='topic', data_handler=data_handler)
 
     publisher = Publisher(broker_handler, sm_service)
 
@@ -101,13 +93,9 @@ def test_publisher__register_topic__sm_error__raises_ClientError():
     sm_service = mock.Mock()
     sm_service.create_topic = Mock(side_effect=APIError(status_code=500, detail="error"))
 
-    def handler1(context): return "handler1"
-    def handler2(context): return context + "handler2"
-    def handler3(context): return context + "handler3"
+    def data_handler(context=None): return "data"
 
-    pipeline = Pipeline([handler1, handler2, handler3])
-
-    topic = Topic(topic_name='topic', pipeline=pipeline)
+    topic = Topic(topic_name='topic', data_handler=data_handler)
 
     publisher = Publisher(broker_handler, sm_service)
 
@@ -125,13 +113,9 @@ def test_publisher__register_topic__topic_does_not_exist_and_is_registered_in_br
     mock_sm_create_topic = Mock()
     sm_service.create_topic = mock_sm_create_topic
 
-    def handler1(context): return "handler1"
-    def handler2(context): return context + "handler2"
-    def handler3(context): return context + "handler3"
+    def data_handler(context=None): return "data"
 
-    pipeline = Pipeline([handler1, handler2, handler3])
-
-    topic = Topic(topic_name='topic', pipeline=pipeline)
+    topic = Topic(topic_name='topic', data_handler=data_handler)
 
     publisher = Publisher(broker_handler, sm_service)
 
@@ -157,13 +141,9 @@ def test_publish_topic__topic_exists_and_broker_handler_is_called():
     broker_handler = mock.Mock()
     sm_service = mock.Mock()
 
-    def handler1(context): return "handler1"
-    def handler2(context): return context + "handler2"
-    def handler3(context): return context + "handler3"
+    def data_handler(context=None): return "data"
 
-    pipeline = Pipeline([handler1, handler2, handler3])
-
-    topic = Topic(topic_name='topic', pipeline=pipeline)
+    topic = Topic(topic_name='topic', data_handler=data_handler)
 
     publisher = Publisher(broker_handler, sm_service)
 
@@ -190,13 +170,13 @@ def test_publisher__sync_topics():
     mock_sm_delete_topic = Mock()
     sm_service.delete_topic = mock_sm_delete_topic
 
-    def handler1(context): return "handler1"
-    def handler2(context): return context + "handler2"
-    def handler3(context): return context + "handler3"
+    def data_handler1(context): return "handler1"
+    def data_handler2(context): return context + "handler2"
+    def data_handler3(context): return context + "handler3"
 
-    topic1 = Topic(topic_name='topic1', pipeline=Pipeline([handler1]))
-    topic2 = Topic(topic_name='topic2', pipeline=Pipeline([handler2]))
-    topic3 = Topic(topic_name='topic3', pipeline=Pipeline([handler3]))
+    topic1 = Topic(topic_name='topic1', data_handler=data_handler1)
+    topic2 = Topic(topic_name='topic2', data_handler=data_handler2)
+    topic3 = Topic(topic_name='topic3', data_handler=data_handler3)
 
     publisher = Publisher(broker_handler, sm_service)
 
