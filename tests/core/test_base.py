@@ -2,39 +2,40 @@
 Copyright 2019 EUROCONTROL
 ==========================================
 
-Redistribution and use in source and binary forms, with or without modification, are permitted provided that the 
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
 following conditions are met:
 
-1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following 
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
    disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following 
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following
    disclaimer in the documentation and/or other materials provided with the distribution.
-3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products 
+3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products
    derived from this software without specific prior written permission.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, 
-INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR 
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
-WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE 
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ==========================================
 
-Editorial note: this license is an instance of the BSD license template as provided by the Open Source Initiative: 
+Editorial note: this license is an instance of the BSD license template as provided by the Open Source Initiative:
 http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
 from unittest import mock
+from unittest.mock import Mock
 
 import pytest
 
 from swim_pubsub.core.base import App
 from swim_pubsub.core.broker_handlers import BrokerHandler, Connector
 from swim_pubsub.core.clients import PubSubClient
-from swim_pubsub.core.errors import AppError
+from swim_pubsub.core.errors import AppError, PubSubClientError
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -87,7 +88,7 @@ def test_app__run__before_run_actions_run_before_app_run(mock_protoncontainer):
     assert callable2.called
 
 
-def test_app__register_client__client_class_is_not_of_type_Client__raises_AppError():
+def test_app__register_client__client_class_is_not_of_type_Client__raises_pubsubclienterror():
     handler = mock.Mock()
 
     app = App(handler)
@@ -95,9 +96,26 @@ def test_app__register_client__client_class_is_not_of_type_Client__raises_AppErr
     class FakeClient:
         pass
 
-    with pytest.raises(AppError) as e:
+    with pytest.raises(PubSubClientError) as e:
         app.register_client('username', 'password', client_class=FakeClient)
     assert "client_class should be PubSubClient or should inherit from PubSubClient" == str(e.value)
+
+
+def test_app__register_client__client_is_not_valid__raises_pubsubclienterror():
+    handler = mock.Mock()
+
+    app = App(handler)
+    app.config = {'SUBSCRIPTION-MANAGER': {}}
+
+    class TestClient(PubSubClient):
+        def is_valid(self):
+            return False
+    TestClient.create = Mock(return_value=TestClient(broker_handler=Mock(), sm_service=Mock()))
+
+    with pytest.raises(PubSubClientError) as e:
+        app.register_client('username', 'password', client_class=TestClient)
+
+    assert "User 'username' is not valid" == str(e.value)
 
 
 def test_app_register_client__client_class_is_valid__client_is_properly_registered():
