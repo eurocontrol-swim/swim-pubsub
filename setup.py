@@ -38,7 +38,7 @@ setup(
     author='EUROCONTROL (SWIM)',
     author_email='',
     packages=find_packages(exclude=['tests']),
-    url='https://bitbucket.org/antavelos-eurocontrol/swim-pubsub',
+    url='https://github.com/eurocontrol-swim//swim-pubsub',
     install_requires=[],
     tests_require=[
         'pytest',

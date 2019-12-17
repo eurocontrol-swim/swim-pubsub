@@ -13,7 +13,7 @@ subscribers. Moreover, it works closely with a broker (currently tested with [Ra
 where it coordinates the flow of the data from the topics to dedicated queues per subscription based on its DB data. The
 functionalities of the Subscription Manager are abstracted away under the 
 [SubscriptionManagerService](#subscription-manager-service) while the currently used implementation is
-[https://bitbucket.org/antavelos-eurocontrol/subscription-manager/src](https://bitbucket.org/antavelos-eurocontrol/subscription-manager/src)
+[https://github.com/eurocontrol-swim//subscription-manager/src](https://github.com/eurocontrol-swim/subscription-manager/src)
 
 
 ## Configuration
