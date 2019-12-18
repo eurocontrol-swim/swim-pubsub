@@ -165,7 +165,7 @@ import json
 
 from proton import Message
 
-from swim_pubsub.core.topics.topics import Topic, ScheduledTopic
+from swim_pubsub.topics import Topic, ScheduledTopic
 from swim_pubsub.publisher import PubApp
 
 

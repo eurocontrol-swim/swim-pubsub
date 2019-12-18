@@ -32,10 +32,10 @@ from unittest.mock import Mock
 
 import pytest
 
-from swim_pubsub.core.base import App
-from swim_pubsub.core.broker_handlers import BrokerHandler, Connector
+from swim_pubsub.apps.base import App
+from swim_pubsub.core.broker_handlers_ import BrokerHandler
 from swim_pubsub.core.clients import PubSubClient
-from swim_pubsub.core.errors import AppError, PubSubClientError
+from swim_pubsub.errors import AppError, PubSubClientError
 
 __author__ = "EUROCONTROL (SWIM)"
 

@@ -27,21 +27,5 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-from swim_pubsub.core.base import App
-from swim_pubsub.publisher.client import Publisher
-from swim_pubsub.publisher.handler import PublisherBrokerHandler
 
 __author__ = "EUROCONTROL (SWIM)"
-
-
-class PubApp(App):
-
-    def register_publisher(self, username: str, password: str) -> Publisher:
-        """
-        Creates a Publisher client
-        """
-        return self.register_client(username, password, client_class=Publisher)
-
-    @classmethod
-    def create_from_config(cls, config_file: str, broker_handler_class=PublisherBrokerHandler):
-        return cls._create_from_config(config_file, broker_handler_class)

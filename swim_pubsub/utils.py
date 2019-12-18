@@ -27,57 +27,74 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-from unittest import mock
-from unittest.mock import Mock
+import logging
+from typing import Union, Optional
+import yaml
+from proton import SSLDomain, SSLUnavailable
 
-from rest_client.errors import APIError
-from subscription_manager_client.subscription_manager import SubscriptionManagerClient
-
-from swim_pubsub.core.clients import PubSubClient
+from swim_pubsub import ConfigDict
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-def test_client__create_sm_client__returns_SubscriptionManagerClient_object():
-    sm_config = {
-        'host': 'host',
-        'https': True,
-        'timeout': 10,
-        'verify': 'verify'
-    }
-    with mock.patch.object(SubscriptionManagerClient, 'ping_credentials', return_value=mock.Mock()):
-        sm_client = PubSubClient._create_sm_client(sm_config, 'username', 'password')
-
-        assert isinstance(sm_client, SubscriptionManagerClient)
+_logger = logging.getLogger(__name__)
 
 
-def test_client__create__returns_Client_object():
-    sm_config = {
-        'host': 'host',
-        'https': True,
-        'timeout': 10,
-        'verify': False
-    }
-    broker_handler = mock.Mock()
+def yaml_file_to_dict(filename: str) -> ConfigDict:
+    """
+    Converts a yml file into a dict
+    :param filename:
+    :return:
+    """
+    if not filename.endswith(".yml"):
+        raise ValueError("YAML config files should end with '.yml' extension (RTFMG).")
 
-    with mock.patch.object(SubscriptionManagerClient, 'ping_credentials', return_value=mock.Mock()):
+    with open(filename) as f:
+        obj = yaml.load(f, Loader=yaml.FullLoader)
 
-        client = PubSubClient.create(broker_handler, sm_config, 'username', 'password')
-
-        assert isinstance(client, PubSubClient)
+    return obj or None
 
 
-def test_client__is_valid__is_false_if_credentials_are_incorrect():
-    broker_handler = Mock()
-    sm_service = Mock()
-    sm_service.sm_client = Mock()
-    sm_service.client.ping_credentials = Mock(side_effect=APIError('detail', 401))
+def _get_ssl_domain(mode: int) -> Union[SSLDomain, None]:
+    """
 
-    client = PubSubClient(broker_handler=broker_handler, sm_service=sm_service)
+    :param mode:
+    :return:
+    """
+    try:
+        return SSLDomain(mode)
+    except SSLUnavailable as e:
+        _logger.warning(str(e))
+        return None
 
-    assert client.is_valid() is False
-    sm_service.client.ping_credentials.assert_called_once()
 
-    # ping credentials should be called only the first time
-    client.is_valid()
-    sm_service.client.ping_credentials.assert_called_once()
+def create_ssl_domain(cert_db: str,
+                      cert_file: Optional[str] = None,
+                      cert_key: Optional[str] = None,
+                      cert_password: Optional[str] = None,
+                      mode: int = SSLDomain.VERIFY_PEER) -> Union[SSLDomain, None]:
+    """
+    Creates an SSLDomain to be passed upon connecting to the broker
+    :param cert_db: path to certificate DB
+    :param cert_file: path to client certificate
+    :param cert_key: path to client key
+    :param cert_password: password of the client
+    :param mode: one of MODE_CLIENT, MODE_SERVER, VERIFY_PEER, VERIFY_PEER_NAME, ANONYMOUS_PEER
+    :return:
+    """
+    ssl_domain = _get_ssl_domain(mode)
+
+    if ssl_domain is None:
+        return None
+
+    ssl_domain.set_trusted_ca_db(cert_db)
+
+    if cert_file and cert_key and cert_password:
+        ssl_domain.set_credentials(cert_file, cert_key, cert_password)
+
+    return ssl_domain
+
+
+def truncate_message(message: str, max_length: int):
+
+    return f"{message[:max_length]}..."

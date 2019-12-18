@@ -27,57 +27,41 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-from unittest import mock
-from unittest.mock import Mock
-
-from rest_client.errors import APIError
-from subscription_manager_client.subscription_manager import SubscriptionManagerClient
-
-from swim_pubsub.core.clients import PubSubClient
 
 __author__ = "EUROCONTROL (SWIM)"
 
+from typing import Dict, Callable
 
-def test_client__create_sm_client__returns_SubscriptionManagerClient_object():
-    sm_config = {
-        'host': 'host',
-        'https': True,
-        'timeout': 10,
-        'verify': 'verify'
-    }
-    with mock.patch.object(SubscriptionManagerClient, 'ping_credentials', return_value=mock.Mock()):
-        sm_client = PubSubClient._create_sm_client(sm_config, 'username', 'password')
-
-        assert isinstance(sm_client, SubscriptionManagerClient)
+from swim_pubsub.apps.base import App
+from swim_pubsub.broker_handlers.subscriber import SubscriberBrokerHandler
 
 
-def test_client__create__returns_Client_object():
-    sm_config = {
-        'host': 'host',
-        'https': True,
-        'timeout': 10,
-        'verify': False
-    }
-    broker_handler = mock.Mock()
+class SubApp(App):
 
-    with mock.patch.object(SubscriptionManagerClient, 'ping_credentials', return_value=mock.Mock()):
+    def __init__(self, broker_handler: SubscriberBrokerHandler):
+        App.__init__(self, broker_handler)
 
-        client = PubSubClient.create(broker_handler, sm_config, 'username', 'password')
+        self.broker_handler: SubscriberBrokerHandler = broker_handler  # for type hint
 
-        assert isinstance(client, PubSubClient)
+        self.queues: Dict[str, str] = {}
 
+    def attach_queue(self, queue: str, data_consumer: Callable) -> None:
+        """
 
-def test_client__is_valid__is_false_if_credentials_are_incorrect():
-    broker_handler = Mock()
-    sm_service = Mock()
-    sm_service.sm_client = Mock()
-    sm_service.client.ping_credentials = Mock(side_effect=APIError('detail', 401))
+        :param queue:
+        :param data_consumer: consumes the messages coming from the broker. Signature:
+                              data_consumer(message: proton.Message) -> Any
+                              raises: DataConsumerError
+        """
+        self.broker_handler.create_receiver(queue, data_consumer)
 
-    client = PubSubClient(broker_handler=broker_handler, sm_service=sm_service)
+    def detach_queue(self, queue: str) -> None:
+        """
 
-    assert client.is_valid() is False
-    sm_service.client.ping_credentials.assert_called_once()
+        :param queue:
+        """
+        self.broker_handler.remove_receiver(queue)
 
-    # ping credentials should be called only the first time
-    client.is_valid()
-    sm_service.client.ping_credentials.assert_called_once()
+    @classmethod
+    def create_from_config(cls, config_file: str):
+        return cls._create_from_config(config_file, broker_handler_class=SubscriberBrokerHandler)

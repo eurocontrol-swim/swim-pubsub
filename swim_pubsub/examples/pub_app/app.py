@@ -2,27 +2,27 @@
 Copyright 2019 EUROCONTROL
 ==========================================
 
-Redistribution and use in source and binary forms, with or without modification, are permitted provided that the 
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
 following conditions are met:
 
-1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following 
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
    disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following 
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following
    disclaimer in the documentation and/or other materials provided with the distribution.
-3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products 
+3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products
    derived from this software without specific prior written permission.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, 
-INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR 
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
-WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE 
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ==========================================
 
-Editorial note: this license is an instance of the BSD license template as provided by the Open Source Initiative: 
+Editorial note: this license is an instance of the BSD license template as provided by the Open Source Initiative:
 http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
@@ -39,8 +39,8 @@ from opensky_network_client.opensky_network import OpenskyNetworkClient
 from proton import Message
 from rest_client.errors import APIError
 
-from swim_pubsub.core.topics.topics import ScheduledTopic, Topic
-from swim_pubsub.publisher import PubApp
+from swim_pubsub.apps.pub_app import PubApp
+from swim_pubsub.topics.topics import ScheduledTopic, Topic
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -104,8 +104,6 @@ app = PubApp.create_from_config(config_file)
 
 opensky = OpenSkyNetworkDataHandler()
 
-publisher = app.register_publisher('swim-adsb', 'rsdyhdsrhdyh ')
-
 airports = {
     'Brussels': 'EBBR',
     'Amsterdam': 'EHAM',
@@ -120,14 +118,14 @@ airports = {
 for city, icao24 in airports.items():
 
     city_arrivals_topic = Topic(topic_name=f'arrivals.{city}',
-                                data_handler=partial(opensky.arrivals_today_handler, icao24))
+                                data_producer=partial(opensky.arrivals_today_handler, icao24))
     city_departures_topic = ScheduledTopic(topic_name=f'departures.{city}',
-                                           data_handler=partial(opensky.departures_today_handler, icao24),
+                                           data_producer=partial(opensky.departures_today_handler, icao24),
                                            interval_in_sec=5)
 
     # register topics
-    publisher.register_topic(topic=city_arrivals_topic)
-    publisher.register_topic(topic=city_departures_topic)
+    app.register_topic(topic=city_arrivals_topic)
+    app.register_topic(topic=city_departures_topic)
 
 
 app.run(threaded=True)

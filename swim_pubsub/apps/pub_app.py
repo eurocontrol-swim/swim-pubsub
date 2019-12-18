@@ -27,57 +27,54 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-from unittest import mock
-from unittest.mock import Mock
-
-from rest_client.errors import APIError
-from subscription_manager_client.subscription_manager import SubscriptionManagerClient
-
-from swim_pubsub.core.clients import PubSubClient
 
 __author__ = "EUROCONTROL (SWIM)"
 
+import logging
+from typing import Dict, Optional, Any
 
-def test_client__create_sm_client__returns_SubscriptionManagerClient_object():
-    sm_config = {
-        'host': 'host',
-        'https': True,
-        'timeout': 10,
-        'verify': 'verify'
-    }
-    with mock.patch.object(SubscriptionManagerClient, 'ping_credentials', return_value=mock.Mock()):
-        sm_client = PubSubClient._create_sm_client(sm_config, 'username', 'password')
+from swim_pubsub.apps.base import App
+from swim_pubsub.broker_handlers.publisher import PublisherBrokerHandler
+from swim_pubsub.topics import TopicType
 
-        assert isinstance(sm_client, SubscriptionManagerClient)
+_logger = logging.getLogger(__name__)
 
 
-def test_client__create__returns_Client_object():
-    sm_config = {
-        'host': 'host',
-        'https': True,
-        'timeout': 10,
-        'verify': False
-    }
-    broker_handler = mock.Mock()
+class PubApp(App):
 
-    with mock.patch.object(SubscriptionManagerClient, 'ping_credentials', return_value=mock.Mock()):
+    def __init__(self, broker_handler: PublisherBrokerHandler):
+        App.__init__(self, broker_handler)
 
-        client = PubSubClient.create(broker_handler, sm_config, 'username', 'password')
+        self.broker_handler: PublisherBrokerHandler = broker_handler  # for type hint
 
-        assert isinstance(client, PubSubClient)
+        self.topics_dict: Dict[str, TopicType] = {}
 
+    def register_topic(self, topic: TopicType):
+        """
+        :param topic:
+        """
+        if topic.name in self.topics_dict:
+            _logger.error(f"Topic with name {topic.name} already exists in broker.")
+            return
 
-def test_client__is_valid__is_false_if_credentials_are_incorrect():
-    broker_handler = Mock()
-    sm_service = Mock()
-    sm_service.sm_client = Mock()
-    sm_service.client.ping_credentials = Mock(side_effect=APIError('detail', 401))
+        self.topics_dict[topic.name] = topic
 
-    client = PubSubClient(broker_handler=broker_handler, sm_service=sm_service)
+        self.broker_handler.add_topic(topic)
 
-    assert client.is_valid() is False
-    sm_service.client.ping_credentials.assert_called_once()
+    def publish_topic(self, topic_name: str, context: Optional[Any] = None):
+        """
+        On demand data publish of the provided topic_id
 
-    # ping credentials should be called only the first time
-    client.is_valid()
-    sm_service.client.ping_credentials.assert_called_once()
+        :param topic_name:
+        :param context:
+        """
+        topic = self.topics_dict.get(topic_name)
+
+        if topic is None:
+            raise ValueError(f"Invalid topic_name: {topic_name}")
+
+        self.broker_handler.trigger_topic(topic=topic, context=context)
+
+    @classmethod
+    def create_from_config(cls, config_file: str):
+        return cls._create_from_config(config_file, PublisherBrokerHandler)

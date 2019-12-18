@@ -27,57 +27,56 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-from unittest import mock
-from unittest.mock import Mock
+import json
+import os
 
-from rest_client.errors import APIError
-from subscription_manager_client.subscription_manager import SubscriptionManagerClient
+from proton import Message
 
-from swim_pubsub.core.clients import PubSubClient
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-def test_client__create_sm_client__returns_SubscriptionManagerClient_object():
-    sm_config = {
-        'host': 'host',
-        'https': True,
-        'timeout': 10,
-        'verify': 'verify'
-    }
-    with mock.patch.object(SubscriptionManagerClient, 'ping_credentials', return_value=mock.Mock()):
-        sm_client = PubSubClient._create_sm_client(sm_config, 'username', 'password')
-
-        assert isinstance(sm_client, SubscriptionManagerClient)
+from swim_pubsub.apps.sub_app import SubApp
 
 
-def test_client__create__returns_Client_object():
-    sm_config = {
-        'host': 'host',
-        'https': True,
-        'timeout': 10,
-        'verify': False
-    }
-    broker_handler = mock.Mock()
+def handler(message: Message, topic: str) -> None:
 
-    with mock.patch.object(SubscriptionManagerClient, 'ping_credentials', return_value=mock.Mock()):
+    with open(f'/home/alex/data/{topic}', 'a') as f:
+        data = json.loads(message.body)
 
-        client = PubSubClient.create(broker_handler, sm_config, 'username', 'password')
-
-        assert isinstance(client, PubSubClient)
+        f.write("New message:\n")
+        f.write(f'Content-Type: {message.content_type}\n')
+        f.write(f'Data: {json.dumps(data, indent=4, sort_keys=True)}\n\n')
 
 
-def test_client__is_valid__is_false_if_credentials_are_incorrect():
-    broker_handler = Mock()
-    sm_service = Mock()
-    sm_service.sm_client = Mock()
-    sm_service.client.ping_credentials = Mock(side_effect=APIError('detail', 401))
+current_dir = os.path.dirname(os.path.realpath(__file__))
+config_file = os.path.join(current_dir, 'config.yml')
+app = SubApp.create_from_config(config_file)
 
-    client = PubSubClient(broker_handler=broker_handler, sm_service=sm_service)
+app.run(threaded=True)
 
-    assert client.is_valid() is False
-    sm_service.client.ping_credentials.assert_called_once()
-
-    # ping credentials should be called only the first time
-    client.is_valid()
-    sm_service.client.ping_credentials.assert_called_once()
+# from functools import partial
+#
+# from subscription_manager_client.models import Subscription
+# from subscription_manager_client.subscription_manager import SubscriptionManagerClient
+#
+# sm_client = SubscriptionManagerClient.create()
+#
+# topics = sm_client.get_topics()
+#
+# -- Subscribe
+# subscription = Subscription(topic_id=topics[0].id)
+# subscription = sm_client.post_subscription(subscription)
+# subscriber.attach_queue(subscription.queue, callback=partial(handler, topics=subscription.topic.name)
+#
+# -- Pause
+# subscription.active = False
+# sm_client.update_subscription(subscription.id, subscription)
+#
+# -- Resume
+# subscription.active = True
+# sm_client.update_subscription(subscription.id, subscription)
+#
+# -- Unsubscribe
+# sm_client.delete_subscription_by_id(subscription.id)
+# subscriber.detach_queue(subscription.queue)

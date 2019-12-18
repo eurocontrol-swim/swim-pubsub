@@ -27,57 +27,13 @@ http://opensource.org/licenses/BSD-3-Clause
 
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
-from unittest import mock
-from unittest.mock import Mock
-
-from rest_client.errors import APIError
-from subscription_manager_client.subscription_manager import SubscriptionManagerClient
-
-from swim_pubsub.core.clients import PubSubClient
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
-def test_client__create_sm_client__returns_SubscriptionManagerClient_object():
-    sm_config = {
-        'host': 'host',
-        'https': True,
-        'timeout': 10,
-        'verify': 'verify'
-    }
-    with mock.patch.object(SubscriptionManagerClient, 'ping_credentials', return_value=mock.Mock()):
-        sm_client = PubSubClient._create_sm_client(sm_config, 'username', 'password')
-
-        assert isinstance(sm_client, SubscriptionManagerClient)
+class DataProducerError(Exception):
+    pass
 
 
-def test_client__create__returns_Client_object():
-    sm_config = {
-        'host': 'host',
-        'https': True,
-        'timeout': 10,
-        'verify': False
-    }
-    broker_handler = mock.Mock()
-
-    with mock.patch.object(SubscriptionManagerClient, 'ping_credentials', return_value=mock.Mock()):
-
-        client = PubSubClient.create(broker_handler, sm_config, 'username', 'password')
-
-        assert isinstance(client, PubSubClient)
-
-
-def test_client__is_valid__is_false_if_credentials_are_incorrect():
-    broker_handler = Mock()
-    sm_service = Mock()
-    sm_service.sm_client = Mock()
-    sm_service.client.ping_credentials = Mock(side_effect=APIError('detail', 401))
-
-    client = PubSubClient(broker_handler=broker_handler, sm_service=sm_service)
-
-    assert client.is_valid() is False
-    sm_service.client.ping_credentials.assert_called_once()
-
-    # ping credentials should be called only the first time
-    client.is_valid()
-    sm_service.client.ping_credentials.assert_called_once()
+class DataConsumerError(Exception):
+    pass

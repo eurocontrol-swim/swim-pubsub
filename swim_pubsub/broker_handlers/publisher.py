@@ -28,15 +28,15 @@ http://opensource.org/licenses/BSD-3-Clause
 Details on EUROCONTROL: http://www.eurocontrol.int
 """
 import logging
-from typing import Union, Any, Optional, List
+from typing import Any, Optional, List
 
 import proton
 
-from swim_pubsub.core.broker_handlers import BrokerHandler, Connector
-from swim_pubsub.core.errors import BrokerHandlerError
-from swim_pubsub.core.topics import TopicType
-from swim_pubsub.core.topics.topics import ScheduledTopic, TopicDataHandlerError
-from swim_pubsub.core.topics.utils import truncate_message
+from swim_pubsub.broker_handlers.base import BrokerHandler
+from swim_pubsub.broker_handlers.connectors import Connector
+from swim_pubsub.topics import TopicType
+from swim_pubsub.topics.topics import ScheduledTopic, TopicDataHandlerError
+from swim_pubsub.utils import truncate_message
 
 __author__ = "EUROCONTROL (SWIM)"
 
@@ -72,7 +72,7 @@ class PublisherBrokerHandler(BrokerHandler):
         try:
             self._sender = self._create_sender(self.endpoint)
             _logger.debug(f"Created sender {self._sender}")
-        except BrokerHandlerError as e:
+        except Exception as e:
             _logger.error(f'Error while creating sender: {str(e)}')
             return
 
@@ -120,7 +120,7 @@ class PublisherBrokerHandler(BrokerHandler):
         """
 
         try:
-            data = topic.get_data(context=context)
+            data = topic.produce_data(context=context)
         except TopicDataHandlerError as e:
             _logger.error(f"Error while getting data of topic {topic.name}: {str(e)}")
             return

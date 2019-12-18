@@ -29,27 +29,24 @@ Details on EUROCONTROL: http://www.eurocontrol.int
 """
 import logging.config
 import threading
-from typing import Optional, List, Callable, Type
+from typing import Optional, Type
 
 from proton.reactor import Container
 
-from swim_pubsub.core.clients import PubSubClient
-from swim_pubsub.core import ConfigDict
-from swim_pubsub.core.errors import AppError, PubSubClientError
-from swim_pubsub.core.broker_handlers import BrokerHandler
-from swim_pubsub.core import utils
+from swim_pubsub.broker_handlers.base import BrokerHandler
+from swim_pubsub import utils, ConfigDict
 
 __author__ = "EUROCONTROL (SWIM)"
 
 
 class _ProtonContainer:
 
-    def __init__(self, handler: Optional[BrokerHandler] = None) -> None:
+    def __init__(self, broker_handler: Optional[BrokerHandler] = None) -> None:
         """
         A `proton.Container` extension allowing threaded running.
-        :param handler:
+        :param broker_handler:
         """
-        self._handler: BrokerHandler = handler
+        self.broker_handler: BrokerHandler = broker_handler
         self._thread: Optional[threading.Thread] = None
 
     def is_running(self):
@@ -59,9 +56,9 @@ class _ProtonContainer:
         :return:
         """
         if self._thread:
-            return self._handler.started and self._thread.is_alive()
+            return self.broker_handler.started and self._thread.is_alive()
         else:
-            return self._handler.started
+            return self.broker_handler.started
 
     def run(self, threaded: bool = False):
         """
@@ -81,13 +78,13 @@ class _ProtonContainer:
         """
         The actual runner
         """
-        self._container = Container(self._handler)
+        self._container = Container(self.broker_handler)
         self._container.run()
 
 
 class App(_ProtonContainer):
 
-    def __init__(self, handler: BrokerHandler):
+    def __init__(self, broker_handler: BrokerHandler):
         """
         A `_ProtonContainer` extension which acts like an app by keeping track of:
          - the running of the contaner.
@@ -95,70 +92,18 @@ class App(_ProtonContainer):
          - any actions to be run before the actual run of the container.
         :param handler:
         """
-        super().__init__(handler=handler)
+        super().__init__(broker_handler=broker_handler)
 
-        self._handler: BrokerHandler = handler
-        self._before_run_actions: List[Callable] = []
+        self.broker_handler: BrokerHandler = broker_handler
         self.config: Optional[ConfigDict] = None
-        self.clients: List[PubSubClient] = []
-
-    def before_run(self, f: Callable):
-        """
-        Decorator to be used on any action that needs to be run before starting the application. The actions will be run
-        in FIFO mode.
-
-        Usage:
-        >>> handler = BrokerHandler()
-        >>> app = App(handler)
-        >>>
-        >>> @app.before_run
-        >>> def action():
-        >>>     print("Before run")
-        >>>
-        >>> app.run()
-        """
-        if not callable(f):
-            raise AppError(f'{f} is not callable')
-
-        self._before_run_actions.append(f)
 
     def run(self, threaded: bool = False):
         """
         Overrides the container run by running first any registered as 'before_run' action.
         :param threaded:
         """
-        for action in self._before_run_actions:
-            action()
 
         super().run(threaded=threaded)
-
-    def register_client(self, username: str, password: str, client_class: Type[PubSubClient] = PubSubClient):
-        """
-        Creates a new client (publisher, subscriber) that will be using this app.
-
-        :param username:
-        :param password:
-        :param client_class:
-        :return:
-        """
-        if client_class != PubSubClient:
-            if PubSubClient not in client_class.__bases__:
-                raise PubSubClientError(f"client_class should be PubSubClient or should inherit from PubSubClient")
-
-        client = client_class.create(self._handler, self.config['SUBSCRIPTION-MANAGER'], username, password)
-
-        if not client.is_valid():
-            raise PubSubClientError(f"User '{username}' is not valid")
-
-        self.clients.append(client)
-
-        return client
-
-    def remove_client(self, client: PubSubClient):
-        try:
-            self.clients.remove(client)
-        except ValueError:
-            raise AppError(f"PubSubClient {client} was not found")
 
     @classmethod
     def _create_from_config(cls, config_file: str, broker_handler_class: Type[BrokerHandler]):

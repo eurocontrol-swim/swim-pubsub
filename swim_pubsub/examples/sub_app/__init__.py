@@ -29,8 +29,3 @@ Details on EUROCONTROL: http://www.eurocontrol.int
 """
 
 __author__ = "EUROCONTROL (SWIM)"
-
-
-def truncate_message(message: str, max_length: int):
-
-    return f"{message[:max_length]}..."
